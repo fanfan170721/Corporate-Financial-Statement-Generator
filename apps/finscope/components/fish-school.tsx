@@ -177,7 +177,7 @@ export default function FishSchool({ compact = false, companies, onCompanyClick 
       for (const food of foods) {
         const fade = Math.min(1, (14 - food.age) * 2);
         context.globalAlpha = Math.max(0, fade);
-        context.fillStyle = dark ? "#a78638" : "#e5ba4b";
+        context.fillStyle = dark ? "rgba(145, 126, 82, .86)" : "rgba(205, 184, 132, .86)";
         context.beginPath();
         context.arc(food.x, food.y, 2.7 + Math.sin(food.age * 3 + food.drift) * .5, 0, Math.PI * 2);
         context.fill();
