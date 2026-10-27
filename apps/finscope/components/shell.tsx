@@ -1,11 +1,10 @@
 'use client';
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useId, useRef } from 'react';
 import Link from '@/components/app-link';
 import { usePathname } from 'next/navigation';
 import { Moon, Sun, ArrowUpRight, Search, X, Menu, ArrowRight, ShieldCheck } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import type { Company, Viewer } from '@/lib/types';
-import { searchLocalCompanies } from '@/lib/companies';
 import CompanyMark from './company-mark';
 import './guest-access.css';
 
@@ -18,11 +17,35 @@ export async function api<T>(path: string, options?: RequestInit): Promise<T> {
 const AppContext = createContext<{viewer: Viewer | null; accountError: string; refresh: () => Promise<void>; toggleFavorite: (symbol:string) => Promise<void>}>({viewer:null,accountError:'',refresh:async()=>{},toggleFavorite:async()=>{}});
 export const useApp = () => useContext(AppContext);
 export function Brand() {return <Link href="/" className="brand" aria-label="Finscope home"><span className="brand-symbol"><svg viewBox="0 0 32 32" fill="none"><path d="M5 18C10 4 21 4 27 14M5 25C10 11 21 11 27 21" stroke="currentColor" strokeWidth="3.7" strokeLinecap="round"/><circle cx="26" cy="5" r="2.2" fill="var(--pink-strong)"/></svg></span><strong>Finscope<span>FINANCIAL PLANNING</span></strong></Link>}
-export function CompanySearch({onSelect,placeholder='Search a company or ticker, e.g. Microsoft or MSFT',autoFocus=false}:{onSelect:(c:Company)=>void;placeholder?:string;autoFocus?:boolean}) {
-  const [query,setQuery]=useState(''); const [focused,setFocused]=useState(false); const [items,setItems]=useState<Company[]>([]); const [busy,setBusy]=useState(false); const [index,setIndex]=useState(0);
-  useEffect(()=>{setIndex(0);setItems(searchLocalCompanies(query,7)); if(!query.trim()) return; const controller=new AbortController(); const timer=setTimeout(()=>{setBusy(true);api<{companies:Company[]}>(`/api/companies?q=${encodeURIComponent(query)}`,{signal:controller.signal}).then(data=>{if(data.companies)setItems(data.companies.slice(0,8));}).catch(()=>{}).finally(()=>setBusy(false));},350);return()=>{clearTimeout(timer);controller.abort();}},[query]);
-  const choose=(c:Company)=>{onSelect(c);setQuery('');setFocused(false);};
-  return <div className="company-search"><div className={`search-field ${focused?'focused':''}`}><Search size={21}/><input aria-label="Search companies" autoFocus={autoFocus} value={query} placeholder={placeholder} onFocus={()=>setFocused(true)} onBlur={()=>setTimeout(()=>setFocused(false),160)} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>{if(e.key==='ArrowDown'){e.preventDefault();setIndex(i=>Math.min(items.length-1,i+1));}if(e.key==='ArrowUp'){e.preventDefault();setIndex(i=>Math.max(0,i-1));}if(e.key==='Enter'&&items[index]){e.preventDefault();choose(items[index]);}if(e.key==='Escape')setFocused(false);}}/>{query?<button className="icon-button" aria-label="Clear search" onClick={()=>setQuery('')}><X size={16}/></button>:<kbd>⌘ K</kbd>}</div>{focused&&<div className="search-results"><div className="search-results-label">{query?busy?'Searching the company directory…':'Matching companies':'Start with a company'}</div>{items.length?items.map((c,i)=><button key={c.symbol} className={`search-result ${i===index?'highlight':''}`} onMouseDown={e=>e.preventDefault()} onClick={()=>choose(c)}><CompanyMark symbol={c.symbol} size={33} color={c.color} mark={c.mark}/><span><strong>{c.name}</strong><small>{c.nameEn} · {c.exchange}</small></span><span className="mono">{c.symbol}</span><ArrowUpRight size={16}/></button>):<p className="muted empty-small">No matches yet. Try the company name or its exchange ticker.</p>}<Link className="search-institution" href="/liquidity" onMouseDown={e=>e.preventDefault()}>Explore cash flow and commitments <ArrowUpRight size={14}/></Link></div>}</div>;
+export function coverageLabel(company:Company) {
+  if(company.coverage?.status==='available') return `${Math.round(company.coverage.completeness)}% core data · ${company.coverage.periods} years`;
+  return company.coverage?.status==='limited' ? 'Limited data · report unavailable' : 'Not available';
+}
+export function CompanySearch({onSelect,placeholder='Search a company or ticker, e.g. Apple or AAPL',autoFocus=false}:{onSelect:(c:Company)=>void;placeholder?:string;autoFocus?:boolean}) {
+  const resultsId=useId();
+  const blurTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+  const showResults=()=>{if(blurTimer.current)clearTimeout(blurTimer.current);setFocused(true);};
+  useEffect(()=>()=>{if(blurTimer.current)clearTimeout(blurTimer.current);},[]);
+  const [query,setQuery]=useState(''); const [focused,setFocused]=useState(false); const [items,setItems]=useState<Company[]>([]); const [busy,setBusy]=useState(false); const [index,setIndex]=useState(0); const [error,setError]=useState(''); const [retry,setRetry]=useState(0);
+  useEffect(()=>{
+    if(!focused)return;
+    const controller=new AbortController();setIndex(0);setItems([]);setError('');setBusy(true);
+    const timer=setTimeout(()=>{
+      api<{companies:Company[]}>(`/api/companies?q=${encodeURIComponent(query.trim())}`,{signal:controller.signal})
+        .then(data=>{if(!controller.signal.aborted)setItems(data.companies.slice(0,8));})
+        .catch(failure=>{if(!controller.signal.aborted)setError((failure as Error).message);})
+        .finally(()=>{if(!controller.signal.aborted)setBusy(false);});
+    },query.trim()?300:0);
+    return()=>{clearTimeout(timer);controller.abort();};
+  },[query,focused,retry]);
+  const choose=(company:Company)=>{if(company.coverage?.status!=='available')return;onSelect(company);setQuery('');setFocused(false);};
+  return <div className="company-search">
+    <div className={`search-field ${focused?'focused':''}`}><Search size={21}/><input aria-label="Search companies" role="combobox" aria-expanded={focused} aria-controls={resultsId} aria-autocomplete="list" autoFocus={autoFocus} value={query} placeholder={placeholder} onFocus={showResults} onClick={showResults} onBlur={()=>{blurTimer.current=setTimeout(()=>setFocused(false),160);}} onChange={e=>{setQuery(e.target.value);showResults();}} onKeyDown={e=>{if(e.key==='ArrowDown'){e.preventDefault();setIndex(i=>Math.min(items.length-1,i+1));}if(e.key==='ArrowUp'){e.preventDefault();setIndex(i=>Math.max(0,i-1));}if(e.key==='Enter'&&items[index]){e.preventDefault();choose(items[index]);}if(e.key==='Escape')setFocused(false);}}/>{query?<button className="icon-button" aria-label="Clear search" onClick={()=>setQuery('')}><X size={16}/></button>:<kbd>⌘ K</kbd>}</div>
+    {focused&&<div className="search-results" id={resultsId}><div className="search-results-label" role="status">{busy?'Checking company data…':query?'Company directory':'Companies with verified financial data'}</div>
+      {error?<div className="search-feedback" role="alert"><p>{error}</p><button className="text-link" onMouseDown={e=>e.preventDefault()} onClick={()=>setRetry(value=>value+1)}>Try again</button></div>:busy?<p className="muted empty-small">Checking the latest available filings and report coverage.</p>:items.length?items.map((company,i)=><div className="search-result-container" key={`${company.exchange}:${company.symbol}`}><button className={`search-result ${i===index?'highlight':''}`} disabled={company.coverage?.status!=='available'} title={company.coverage?.reason} onMouseDown={e=>e.preventDefault()} onClick={()=>choose(company)}><CompanyMark symbol={company.symbol} size={33} color={company.color} mark={company.mark}/><span><strong>{company.name}</strong><small>{company.exchange} · {coverageLabel(company)}</small>{company.coverage?.status!=='available'&&company.coverage?.reason&&<small className="search-coverage-reason">{company.coverage.reason}</small>}</span><span className="mono">{company.symbol}</span><ArrowUpRight size={16}/></button>{company.coverage?.status!=='available'&&company.cik&&<a className="search-source-link" href={'https://www.sec.gov/edgar/browse/?CIK='+encodeURIComponent(company.cik)+'&owner=exclude'} target="_blank" rel="noopener noreferrer" onMouseDown={e=>e.preventDefault()}>View original company filings <ArrowUpRight size={12}/></a>}</div>):<p className="muted empty-small">No verified matches. Try the company’s full name or exchange ticker.</p>}
+      <div className="search-institution">Select up to three companies with verified report coverage.</div>
+    </div>}
+  </div>;
 }
 export function AppShell({children}:{children:React.ReactNode}){
  const pathname=usePathname(); const [viewer,setViewer]=useState<Viewer|null>(null);const [accountError,setAccountError]=useState(''); const [theme,setTheme]=useState('light');const [search,setSearch]=useState(false);const [menu,setMenu]=useState(false);

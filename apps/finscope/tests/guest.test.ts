@@ -49,7 +49,7 @@ async function fixture() {
     return new Request(`${base}${path}`, { method, headers: { 'Content-Type': 'application/json', ...(extra.origin === null ? {} : { Origin: extra.origin || base }), Cookie: extra.cookie ?? currentCookie, 'CF-Connecting-IP': extra.ip ?? '192.0.2.1', ...extra.headers }, ...(input === undefined ? {} : { body: JSON.stringify(input) }) });
   }
   const makeReport = (symbol: string, mode: 'live' | 'demo' = 'live'): Report => ({ id: 'provider-id', symbol, mode, company: { symbol, name: symbol, nameEn: symbol, exchange: 'NASDAQ', sector: 'Technology', color: '#123456', mark: symbol[0] }, generatedAt: new Date(time).toISOString(), dataAsOf: '2026-06-30', currency: 'USD', periods: [], metrics: { revenueGrowth: null, netMargin: null, freeCashFlow: null, debtToEquity: null, roe: null, cashRatio: null }, insights: [], sources: [], ai: { status: 'ready', summary: 'Must never enter guest evidence', insights: [], sources: [] } });
-  const server = await load(['credential-vault.ts', 'server.ts', 'ai-access.ts'], {
+  const server = await load(['credential-vault.ts', 'market-storage.ts', 'server.ts', 'ai-access.ts'], {
     env, z, GuestError: guestModule.GuestError,
     getUser: async () => user,
     getGuest: () => service.getGuest(request()),

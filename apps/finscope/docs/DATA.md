@@ -1,12 +1,22 @@
 # Financial data, research methods and AI
 
-## Current coverage gap and next release
+## Coverage and report availability
 
-Read the 27 October 2026 takeover brief in `HANDOFF.md` before expanding this system. The owner's latest priority is broad company lookup, even if the next release is simplified to a current stock quote. At least 100 companies should be a real acceptance sample rather than a hard-coded universe. The existing 42-company discovery catalogue and a configured-provider flag do not establish functioning coverage. Main search, recommendations and actions must be tied to actual provider capabilities. Full financial reports, employee counts and news can follow the broadly usable core; never claim a quote is a financial statement or a delayed observation is real-time.
+Financial evidence is the primary output. SEC-backed discovery uses a current issuer/security directory rather than the curated alias list as its universe. Exact ticker matches retain security identity, including share classes; issuer financial evidence may be reused by CIK. Search verifies the selected issuer's financial data before enabling generation. Recommendations include only results that pass the same gate. Missing evidence produces a labelled, disabled result, not an invented report.
+
+The fixed completeness denominator is **11 fields × every displayed annual period**: revenue, net income, operating cash flow, capex, assets, liabilities, cash, debt, gross profit, operating income and equity. Availability requires all of:
+
+- Strictly more than 90% populated observations across the full displayed period set.
+- At least two comparable annual periods.
+- Latest revenue, net income, operating cash flow, assets, liabilities and equity present, and no more than one missing latest core field.
+- A valid reporting date no later than today and no more than 550 days old.
+
+Completeness describes this defined financial summary, not 90% of everything known about a company, all statement rows, or all product features. The gate is deliberately unchanged for financial institutions; non-comparable fields may make their reports limited. Private companies and issuers without suitable public filings may be unavailable. Directory coverage is not a claim that every company can produce a report.
 
 ## Evidence and freshness
 
-- **Direct issuer reports:** Microsoft (MSFT) is available without a financial-data key. Each generation discovers the latest annual report listed by Microsoft and retrieves actual published statement pages. `dataAsOf` is the fiscal cutoff; `retrievedAt` is source retrieval time; `generatedAt` is when the account report was saved. No date is a claim of real-time pricing.
+- **SEC reports:** standardized company facts provide up to five annual periods, with fiscal cutoff, original filing links, retrieval time and calculation provenance. Compact public financial evidence and optional context may be cached for 15 minutes. `dataAsOf` is the reporting cutoff; `retrievedAt` records source retrieval; `generatedAt` records creation of the user's saved report. A new save does not imply a new filing or bypass the cache.
+- **Direct issuer fallback:** Microsoft (MSFT) can also be retrieved from its official annual-report pages without a financial-data key. The adapter discovers the latest listed annual report and retains its own bounded source-page caches.
 - **Published case:** `case-MSFT` contains verified Microsoft FY2021–FY2025 consolidated financials, compiled on 26 October 2026 in Toronto. This is a frozen research snapshot, not a refreshed feed. The internal `mode: live` distinguishes published figures from synthetic fixtures; label this case **Published financials**, never live or refreshed.
 - **Provider reports:** the server retrieves the latest available complete annual disclosures. `generatedAt` records report creation; `dataAsOf` records fiscal year-end. Neither is a live market-price timestamp.
 - **Synthetic illustrations:** deterministic 2020–2024 fixtures always carry `mode: demo`, have no issuer-source claims and cannot invoke paid AI. They support interaction testing, not the featured research case.
@@ -20,7 +30,7 @@ The extraction reads the issuer's consolidated income, balance-sheet and cash-fl
 
 A network validation on 26 October 2026 (America/Toronto) successfully retrieved the [FY2026](https://www.microsoft.com/investor/reports/ar26/index.html), [FY2024](https://www.microsoft.com/investor/reports/ar24/index.html) and [FY2022](https://www.microsoft.com/investor/reports/ar22/index.html) annual reports. It produced FY2022–FY2026, 55 populated core observations and 98 combined statement rows (20 income, 40 balance sheet, 38 cash flow). The latest fiscal cutoff was 30 June 2026. The same real-data flow passed on the deployed `finscopehq.com` guest path on 27 October 2026 (America/New_York), including all three table tabs and archive/reopening. An honest Finscope User-Agent resolved the observed Worker HTTP 403. These are validation records, not a hard-coded claim about future availability or broader issuer coverage.
 
-The interface includes all extracted primary-statement rows, six financial charts, complete CSV export and all three statement tables in print/PDF. Original report links remain essential: the app does not reproduce full footnotes, comprehensive income, changes in equity or the auditor's opinion. Direct coverage is currently MSFT only. A configured provider is required for other companies; discovery-catalogue inclusion does not imply financial-data coverage.
+The direct-adapter interface includes extracted primary-statement rows, six financial charts, CSV export and all three statement tables in print/PDF. Original report links remain essential: the app does not reproduce full footnotes, comprehensive income, changes in equity or the auditor's opinion. This issuer-specific fallback covers Microsoft; broad discovery and standardized reports use the SEC adapter below.
 
 ## Microsoft case provenance
 
@@ -30,21 +40,31 @@ Fiscal years end 30 June. `grossProfit` maps to the dollar-denominated Gross mar
 
 ## SEC adapter
 
-Set a real, identifiable `SEC_USER_AGENT` with the operator's contact email. The directory is `https://www.sec.gov/files/company_tickers.json`; facts use `https://data.sec.gov/api/xbrl/companyfacts/CIK##########.json`. Requests run on the server under SEC fair-access rules. No API key is needed.
+Set a real, identifiable `SEC_USER_AGENT` with the operator's contact email. Discovery reads `https://www.sec.gov/files/company_tickers_exchange.json`; financial facts use `https://data.sec.gov/api/xbrl/companyfacts/CIK##########.json`. The directory keeps ticker, exchange and CIK identities. Requests run on the server under SEC fair-access rules. No SEC API key is needed.
 
-Requests are spaced by at least 350 ms per service instance, with in-flight deduplication, a 24-hour directory cache and a one-hour facts cache. Scaled deployments also need shared caching and an aggregate outbound budget. Instance-local throttling is not a global rate limit.
+The directory cache lasts 12 hours. Compact normalized financial evidence is cached for 15 minutes in shared D1 storage, with a bounded in-memory cache and in-flight deduplication. Raw company-facts payloads are not stored in D1. A D1 reservation spaces SEC admission by 500 ms across Worker instances; a secondary in-process queue spaces JSON requests by at least 350 ms. Admission fails after a bounded wait rather than creating an unbounded queue. Provider redirects are not followed; JSON and annual-document reads have time and size limits.
 
-The parser accepts USD standard US-GAAP/IFRS concepts in annual filings and full-year periods of approximately 330–380 days. Income and cash flow join by exact start/end dates; balance sheets join by ending date. Latest-filed values resolve duplicates. Filing `fy` is not used as the historical year. Missing fields remain `null`.
+The parser reads entity-wide standard US-GAAP/IFRS concepts from annual filings, selecting one reporting currency without currency conversion. Full-year duration observations span approximately 330–380 days. Income and cash flow join exact start/end dates; balance sheets join ending dates. The latest eligible filed observation resolves restatements. Labels describe the year ending; distinct annual periods ending in one calendar year retain full date labels. Filing `fy` is not treated as the observation year.
 
-Issuer extensions, financial institutions, foreign issuers and changed fiscal calendars may leave gaps. General debt/equity is not a bank capital-adequacy ratio. A network check using a URL-only user agent received SEC HTTP 403; production connectivity requires compliant operator identity and deployment-level validation.
+Safe derivations require disclosed inputs from the same fiscal period and filing. Provenance records the source concepts, accession, filing date and calculation basis. Parent-shareholder earnings/equity are not silently substituted with consolidated totals. Debt retains a disclosed borrowing/finance-lease basis; missing components are not zero. Liabilities derived from assets and equity require appropriate total-equity evidence and exclude known temporary-equity cases. Null observations remain null. These are **standardized summaries**, not a complete reconstruction of custom issuer statements, segment disclosures, footnotes or auditor opinions.
+
+Issuer extensions, financial institutions, foreign issuers and changed fiscal calendars may leave gaps. General debt/equity is not a bank capital-adequacy ratio. The presence of a configured contact does not prove connectivity; deployed source access and report/save/reopen paths require their own checks.
 
 References: [EDGAR APIs](https://www.sec.gov/search-filings/edgar-application-programming-interfaces), [SEC developer resources](https://www.sec.gov/about/developer-resources).
+
+## Supplementary company context
+
+`lib/company-context.ts` reads SEC submissions for SIC industry, available HTTPS website metadata and the eight latest supported filing links. The feed is labelled company filings, not general news. It is fetched during report generation, not autocomplete. Annual documents are optional enrichment and do not block valid financial evidence if retrieval fails.
+
+Employee counts require either explicit inline-XBRL employee facts with matching issuer, period and count units, or a tightly matched annual-disclosure sentence that states the company-wide count and exact reporting date. Dimensional subsets, contractors, undated narratives and contradictory totals are rejected. A full-time-only disclosure retains that scope; it is not relabelled total workforce. Narrative evidence retains a short original sentence and source URL. No missing numeric values are inferred by a model.
+
+This release does not promise broad employee coverage, current hiring counts, salary averages, employee reviews or stock quotes. Source links alone do not establish any of those numbers. Additional sources require documented access, dates, definitions and redistribution rights before their data can be presented.
 
 ## Optional global provider
 
 With `FMP_API_KEY`, the adapter uses stable `search-symbol`, `search-name`, `income-statement`, `balance-sheet-statement` and `cash-flow-statement`. Coverage, history, commercial rights and quotas depend on the purchased plan.
 
-Statements join by fiscal year-end, annual period and reporting currency, not array position. Amounts remain in millions of their original reporting currency. No FX rates are inferred. The 42-company discovery catalogue is curated and supports internal multilingual aliases. It is not a current market-cap ranking or universal company directory.
+Statements join by fiscal year-end, annual period and reporting currency, not array position. Amounts remain in millions of their original reporting currency. No FX rates are inferred. The small curated company list supplies multilingual aliases, colours and recommendation seeds; SEC's directory supplies broad issuer discovery. Neither is a current market-cap ranking.
 
 References: [FMP quickstart](https://site.financialmodelingprep.com/developer/docs/quickstart), [FMP documentation](https://site.financialmodelingprep.com/developer/docs).
 
@@ -55,7 +75,7 @@ References: [FMP quickstart](https://site.financialmodelingprep.com/developer/do
 | `revenueGrowth` | % | Latest annual revenue change / previous annual revenue |
 | `netMargin` | % | Net income / revenue |
 | `freeCashFlow` | Reporting-currency millions | Operating cash flow − absolute cash capex |
-| `debtToEquity` | × | Reported borrowings / equity; automated SEC parsing requires complete short-/long-term components |
+| `debtToEquity` | × | Disclosed debt, including finance leases where identified, / parent-shareholder equity; absent borrowing components are never assumed zero |
 | `roe` | % | Net income / average of the latest two year-end equity balances |
 | `cashRatio` | × | Cash and equivalents / total liabilities; not the standard cash/current-liabilities ratio |
 
@@ -81,4 +101,21 @@ API access, billing and quotas are separate from a ChatGPT subscription. Set pro
 
 ## Verification
 
-Run `node --experimental-strip-types --test tests/market.test.ts tests/issuer-financials.test.ts tests/liquidity.test.ts tests/server.test.ts`. Tests cover multilingual/fuzzy discovery, fiscal joins, restatements, quarter exclusion, currency consistency, missing values, invalid denominators, issuer discovery, statement units/signs, reconciliation failures, full CSV exports and formula-safe source text, honest demo labels, forbidden silent fallback, AI citation checks, archive isolation, liquidity cash bridges and conserved commitments. Unit fixtures are invented test inputs, never user-visible company financials. No paid APIs are called. Deployment credentials and network connectivity require separate validation.
+Run `npm test`, `npm run typecheck` and `npm run build`. Tests cover directory discovery beyond the curated list, exact share-class identity, unsupported results, fiscal joins, restatements, currency consistency, provenance, safe derivations, missing fields, bounded cache/admission, employee fact/disclosure parsing, archive isolation, CSV exports and existing account/guest/AI controls. Unit fixtures are invented inputs, never user-visible company financials. Unit tests do not call paid APIs.
+
+The [27 October local adapter audit](coverage/2026-10-27-local.json) samples 350 distinct CIKs from SEC's NYSE/Nasdaq directory order, selected before financial retrieval. Failures stay in the sample; share classes do not count as separate companies. Read the file's current summary rather than copying counts into product promises. Its `parserSha256` identifies the exact parser assessed. Regenerate the audit after accounting corrections before treating its result as evidence for a new build.
+
+To reproduce a fresh network audit from the application directory, configure the genuine `SEC_USER_AGENT` privately and run `node scripts/audit-sec-coverage.mjs --limit 350 --output outputs/coverage/sec-local.json`. The script reports local adapter results, not production navigation, guest admission, chart rendering, saving or reopening. Verify those separately on the published deployment and retain the deployed version with the results. No audit establishes all-company coverage or future source availability.
+
+The [production retrieval audit](coverage/2026-10-27-production.json) verified all 125 locally supported candidates through the deployed public API. Its scope is retrieval and normalization, separate from the guest save/reopen checks documented in the handoff. `scripts/audit-production-coverage.mjs` accepts a candidate JSON file, origin, deployment ID and output path; it respects the production search allowance and performs no AI calls or account mutations.
+
+## Implementation research
+
+These primary references informed the provider, normalization and evidence approach. Product interfaces, proprietary datasets and third-party source code are not copied into this implementation.
+
+- [Stock Analysis data overview](https://stockanalysis.com/help/data-and-downloads/about-our-data/) explains its multiple financial-data providers and differing coverage/update characteristics. Its [API policy](https://stockanalysis.com/help/faq/api-access/) says it does not offer programmatic access; the site is a product reference, not a Finscope ingestion endpoint.
+- [Simply Wall St sources and methodology](https://simplywall.st/analysis-and-financial-data-sources) explains normalized financial evidence and reporting cadence. Its [public company-analysis model](https://github.com/SimplyWallSt/Company-Analysis-Model) provides conceptual documentation with its own licence; it is not the source of Finscope scores or report text.
+- [EdgarTools](https://github.com/dgunning/edgartools) demonstrates company/CIK discovery, financial-statement extraction and filing provenance as separate capabilities. Finscope's Worker adapter is implemented independently in TypeScript.
+- [OpenBB provider documentation](https://docs.openbb.co/odp/python/extensions/providers) and the [OpenBB SEC provider](https://pypi.org/project/openbb-sec/) illustrate a source-specific connector architecture with explicit coverage and caching.
+- [SEC's API documentation](https://www.sec.gov/search-filings/edgar-application-programming-interfaces) defines submissions, entity-wide company facts, units, filing updates and the limits of standardized concepts.
+- [OpenBB debt-field discussion](https://github.com/openbq-org/OpenBB/issues/7634) illustrates gaps caused by concept selection and the risk of unsafe imputation; missing components need explicit provenance rather than assumed zeros. [EdgarTools historical-statement discussion](https://github.com/dgunning/edgartools/issues/1802) illustrates historical-period gaps and the need to test period alignment. Issue reports are implementation lessons, not proof of universal coverage by either product or by Finscope.

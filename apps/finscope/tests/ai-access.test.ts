@@ -38,7 +38,7 @@ async function fixture() {
   const token = `aiFixture${crypto.randomUUID().replaceAll("-", "")}`;
   const store = globalThis as unknown as Record<string, unknown>;
   store[token] = injected;
-  const combined = ["credential-vault.ts", "server.ts", "ai-access.ts"].map((file) => readFileSync(new URL(`../lib/${file}`, import.meta.url), "utf8").replace(/^import .*;\r?\n/gm, "")).join("\n");
+  const combined = ["credential-vault.ts", "market-storage.ts", "server.ts", "ai-access.ts"].map((file) => readFileSync(new URL(`../lib/${file}`, import.meta.url), "utf8").replace(/^import .*;\r?\n/gm, "")).join("\n");
   const code = `const {env,z,getUser,getGuest,GuestError,generateAIAnalysis,generateReport,getDemoReport,searchCompanies,getCaseStudy}=globalThis[${JSON.stringify(token)}];\n${stripTypeScriptTypes(combined, { mode: "transform" })}`;
   const ai = await import(`data:text/javascript;base64,${Buffer.from(code).toString("base64")}`) as AI;
   delete store[token];

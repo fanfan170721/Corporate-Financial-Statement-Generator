@@ -56,7 +56,7 @@ async function fixture() {
   const token = `fixture${crypto.randomUUID().replaceAll("-", "")}`;
   const injectionStore = globalThis as unknown as Record<string, unknown>;
   injectionStore[token] = injected;
-  const source = readFileSync(new URL("../lib/server.ts", import.meta.url), "utf8").replace(/^import .*;\r?\n/gm, "");
+  const source = ["market-storage", "server"].map(name => readFileSync(new URL(`../lib/${name}.ts`, import.meta.url), "utf8").replace(/^import .*;\r?\n/gm, "")).join("\n");
   const compiled = stripTypeScriptTypes(source, { mode: "transform" });
   const code = `const {env,z,getUser,getGuest,GuestError,getDemoReport,generateReport,searchCompanies,generateMeteredAnalysis,aiStatus,sponsorReady,getCaseStudy}=globalThis[${JSON.stringify(token)}];\n${compiled}`;
   const server = await import(`data:text/javascript;base64,${Buffer.from(code).toString("base64")}`) as Server;
@@ -311,7 +311,7 @@ test("live autocomplete is rate limited without consuming research credits", asy
     assert.equal((await f.server.handleCompanies(request("/api/companies?q=MSFT"))).status, 429);
     assert.equal((await f.server.getViewer()).usage.used, 0);
     f.setUser(null);
-    assert.equal((await f.server.handleCompanies(request("/api/companies?q=AAPL"))).status, 200);
+    assert.equal((await f.server.handleCompanies(request("/api/companies?q=AAPL"))).status, 429, "Signing out cannot bypass the shared source-protection limit");
     assert.equal(f.sql.prepare("SELECT COUNT(*) AS n FROM report_jobs WHERE kind='search'").get()!.n, 30);
   } finally { f.close(); }
 });

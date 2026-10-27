@@ -8,8 +8,8 @@ Finscope is a financial analysis and planning tool combining company statements,
 
 ## Features
 
-- Company discovery and comparisons for up to three issuers.
-- Income statements, balance sheets and cash-flow statements with dates, currencies, missing-value handling and original sources.
+- SEC-backed company discovery, verified report availability and comparisons for up to three issuers.
+- Standardized annual income, balance-sheet and cash-flow summaries with dates, currencies, missing-value handling and original filing sources.
 - Six financial charts, calculated ratios, CSV export and print layouts.
 - Email/password accounts, verification codes, password reset and persistent sessions. Account-owned records live in Cloudflare D1.
 - Optional guest access for manual financial reports without email. Guest sessions last 24 hours in the current browser; AI and morning briefs require a verified account.
@@ -27,12 +27,16 @@ The restricted `/owner/setup` page lets the configured owner connect provider ke
 | Function | Implementation / configuration |
 | --- | --- |
 | Email authentication | Implemented; delivery requires Resend and a verified sender domain. Production never simulates delivery. |
-| Financial reports | Direct Microsoft annual-report retrieval requires no provider key. Broader coverage requires compliant SEC access or an appropriate FMP subscription. |
+| Financial reports | SEC EDGAR directory and company-facts adapters provide broad issuer discovery and standardized annual reports. A genuine operator contact in `SEC_USER_AGENT` is required; no SEC API key is needed. Search verifies actual financial coverage before enabling selection. |
 | Saved data | D1 stores reports, watchlists, notes, plans and preferences for authenticated accounts. |
 | AI | Requires a funded personal or sponsored OpenAI API key. No key is included in Git. |
 | Daily reports | Runner implemented; disabled until configuration and a manual verification succeed. |
 
-The older Microsoft FY2021–FY2025 case remains a labelled frozen snapshot. Synthetic examples are labelled and excluded from AI company analysis. Annual statements are periodic disclosures, not real-time market prices. Unsupported data never silently falls back to fabricated financials.
+Report availability requires strictly more than 90% completeness across the same 11 core fields and every displayed annual period, at least two comparable years, all six current primary totals, at most one missing latest field, and a valid latest reporting date within 550 days. Limited or unavailable results remain labelled and cannot be selected from the main discovery interface. These checks do not guarantee coverage of every listed or private company.
+
+Public financial evidence can be cached for 15 minutes. Optional company context adds SEC industry/filing information and an employee count only when a dated disclosure can be verified; it does not promise broad headcount, hiring, salary or review coverage. See [Data and methodology](apps/finscope/docs/DATA.md) and the [350-issuer local adapter audit](apps/finscope/docs/coverage/2026-10-27-local.json). The audit records its parser fingerprint and environment; local results do not establish production-browser availability.
+
+The direct Microsoft annual-report adapter remains a fallback, and the older Microsoft FY2021–FY2025 case remains a labelled frozen snapshot. Synthetic examples are labelled and excluded from AI company analysis. Annual statements are periodic disclosures, not real-time market prices. Standardized summaries do not reproduce complete issuer statements or footnotes. Unsupported data never silently falls back to fabricated financials.
 
 ## Local development
 

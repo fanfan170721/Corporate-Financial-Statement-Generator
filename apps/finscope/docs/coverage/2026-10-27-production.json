@@ -1,0 +1,2574 @@
+{
+  "schemaVersion": 1,
+  "environment": "production",
+  "origin": "https://finscopehq.com",
+  "startedAt": "2026-10-27T07:31:59.970Z",
+  "definition": "Exact-symbol retrieval and financial normalization through the public company search API. This uses the same normalized financial report cache as generation, but is not a claim that every result was saved into a user account. The cohort was selected from the independently audited locally-supported issuers.",
+  "deployment": "appgdep_6ae0533a18f4819195a3ed46ce7b0e8c",
+  "results": [
+    {
+      "symbol": "NVDA",
+      "cik": 1045810,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:32:01.345Z",
+      "available": true,
+      "name": "NVIDIA",
+      "coverage": {
+        "status": "available",
+        "completeness": 100,
+        "periods": 5,
+        "dataAsOf": "2026-01-25",
+        "checkedAt": "2026-10-27T07:32:00.870Z",
+        "present": 55,
+        "expected": 55,
+        "missing": []
+      },
+      "durationMs": 1374
+    },
+    {
+      "symbol": "AAPL",
+      "cik": 320193,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:32:04.192Z",
+      "available": true,
+      "name": "Apple",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-09-27",
+        "checkedAt": "2026-10-27T07:31:26.924Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 439
+    },
+    {
+      "symbol": "GOOGL",
+      "cik": 1652044,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:32:07.780Z",
+      "available": true,
+      "name": "Alphabet",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:32:07.392Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 1181
+    },
+    {
+      "symbol": "MSFT",
+      "cik": 789019,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:32:11.228Z",
+      "available": true,
+      "name": "Microsoft",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2026-06-30",
+        "checkedAt": "2026-10-27T07:32:10.720Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 1032
+    },
+    {
+      "symbol": "META",
+      "cik": 1326801,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:32:14.115Z",
+      "available": true,
+      "name": "Meta",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:32:13.114Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 475
+    },
+    {
+      "symbol": "TSLA",
+      "cik": 1318605,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:32:16.995Z",
+      "available": true,
+      "name": "Tesla",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:31:27.768Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 476
+    },
+    {
+      "symbol": "MU",
+      "cik": 723125,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:32:21.626Z",
+      "available": true,
+      "name": "MICRON TECHNOLOGY INC",
+      "coverage": {
+        "status": "available",
+        "completeness": 100,
+        "periods": 5,
+        "dataAsOf": "2026-09-03",
+        "checkedAt": "2026-10-27T07:32:21.131Z",
+        "present": 55,
+        "expected": 55,
+        "missing": []
+      },
+      "durationMs": 2223
+    },
+    {
+      "symbol": "ASML",
+      "cik": 937966,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:32:24.676Z",
+      "available": true,
+      "name": "ASML",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:32:16.816Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 639
+    },
+    {
+      "symbol": "ABBV",
+      "cik": 1551152,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:32:28.304Z",
+      "available": true,
+      "name": "AbbVie Inc.",
+      "coverage": {
+        "status": "available",
+        "completeness": 94.5,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:32:27.907Z",
+        "present": 52,
+        "expected": 55,
+        "missing": []
+      },
+      "durationMs": 1214
+    },
+    {
+      "symbol": "PLTR",
+      "cik": 1321655,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:32:31.696Z",
+      "available": true,
+      "name": "Palantir",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:32:19.708Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 980
+    },
+    {
+      "symbol": "INTC",
+      "cik": 50863,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:32:35.420Z",
+      "available": true,
+      "name": "Intel",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-27",
+        "checkedAt": "2026-10-27T07:32:34.929Z",
+        "present": 50,
+        "expected": 55,
+        "missing": []
+      },
+      "durationMs": 1321
+    },
+    {
+      "symbol": "COST",
+      "cik": 909832,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:32:38.597Z",
+      "available": true,
+      "name": "Costco",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2026-08-30",
+        "checkedAt": "2026-10-27T07:32:38.162Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 765
+    },
+    {
+      "symbol": "CSCO",
+      "cik": 858877,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:32:41.821Z",
+      "available": true,
+      "name": "CISCO SYSTEMS, INC.",
+      "coverage": {
+        "status": "available",
+        "completeness": 100,
+        "periods": 5,
+        "dataAsOf": "2026-07-25",
+        "checkedAt": "2026-10-27T07:32:41.318Z",
+        "present": 55,
+        "expected": 55,
+        "missing": []
+      },
+      "durationMs": 812
+    },
+    {
+      "symbol": "KO",
+      "cik": 21344,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:32:45.045Z",
+      "available": true,
+      "name": "Coca-Cola",
+      "coverage": {
+        "status": "available",
+        "completeness": 92.7,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:32:44.541Z",
+        "present": 51,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 815
+    },
+    {
+      "symbol": "HD",
+      "cik": 354950,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:32:48.320Z",
+      "available": true,
+      "name": "HOME DEPOT, INC.",
+      "coverage": {
+        "status": "available",
+        "completeness": 100,
+        "periods": 5,
+        "dataAsOf": "2026-02-01",
+        "checkedAt": "2026-10-27T07:32:47.807Z",
+        "present": 55,
+        "expected": 55,
+        "missing": []
+      },
+      "durationMs": 866
+    },
+    {
+      "symbol": "PM",
+      "cik": 1413329,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:32:51.599Z",
+      "available": true,
+      "name": "Philip Morris International Inc.",
+      "coverage": {
+        "status": "available",
+        "completeness": 100,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:32:51.092Z",
+        "present": 55,
+        "expected": 55,
+        "missing": []
+      },
+      "durationMs": 875
+    },
+    {
+      "symbol": "AMAT",
+      "cik": 6951,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:32:54.868Z",
+      "available": true,
+      "name": "APPLIED MATERIALS INC /DE",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-10-26",
+        "checkedAt": "2026-10-27T07:32:54.373Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 858
+    },
+    {
+      "symbol": "PANW",
+      "cik": 1327567,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:32:58.152Z",
+      "available": true,
+      "name": "Palo Alto Networks Inc",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2026-07-31",
+        "checkedAt": "2026-10-27T07:32:57.627Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 877
+    },
+    {
+      "symbol": "LRCX",
+      "cik": 707549,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:33:01.442Z",
+      "available": true,
+      "name": "LAM RESEARCH CORP",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2026-06-28",
+        "checkedAt": "2026-10-27T07:33:01.003Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 876
+    },
+    {
+      "symbol": "DELL",
+      "cik": 1571996,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:33:04.658Z",
+      "available": true,
+      "name": "Dell Technologies Inc.",
+      "coverage": {
+        "status": "available",
+        "completeness": 100,
+        "periods": 5,
+        "dataAsOf": "2026-01-30",
+        "checkedAt": "2026-10-27T07:33:04.201Z",
+        "present": 55,
+        "expected": 55,
+        "missing": []
+      },
+      "durationMs": 802
+    },
+    {
+      "symbol": "NFLX",
+      "cik": 1065280,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:33:07.768Z",
+      "available": true,
+      "name": "Netflix",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:32:17.375Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 695
+    },
+    {
+      "symbol": "AZN",
+      "cik": 901832,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:33:10.891Z",
+      "available": true,
+      "name": "ASTRAZENECA PLC",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:33:10.475Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 716
+    },
+    {
+      "symbol": "TXN",
+      "cik": 97476,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:33:14.331Z",
+      "available": true,
+      "name": "TEXAS INSTRUMENTS INC",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:33:13.658Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 1033
+    },
+    {
+      "symbol": "CRWD",
+      "cik": 1535527,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:33:17.506Z",
+      "available": true,
+      "name": "CrowdStrike Holdings, Inc.",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2026-01-31",
+        "checkedAt": "2026-10-27T07:33:17.059Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 760
+    },
+    {
+      "symbol": "IBM",
+      "cik": 51143,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:33:20.714Z",
+      "available": true,
+      "name": "INTERNATIONAL BUSINESS MACHINES CORP",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:33:20.206Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "operatingIncome"
+        ]
+      },
+      "durationMs": 805
+    },
+    {
+      "symbol": "LIN",
+      "cik": 1707925,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:33:23.867Z",
+      "available": true,
+      "name": "LINDE PLC",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:33:23.476Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "grossProfit"
+        ]
+      },
+      "durationMs": 741
+    },
+    {
+      "symbol": "SHOP",
+      "cik": 1594805,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:33:27.643Z",
+      "available": true,
+      "name": "SHOPIFY INC.",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:33:27.260Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 1369
+    },
+    {
+      "symbol": "ANET",
+      "cik": 1596532,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:33:30.827Z",
+      "available": true,
+      "name": "Arista Networks, Inc.",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:33:30.376Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 779
+    },
+    {
+      "symbol": "CRM",
+      "cik": 1108524,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:33:33.639Z",
+      "available": true,
+      "name": "Salesforce",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2026-01-31",
+        "checkedAt": "2026-10-27T07:32:18.862Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 401
+    },
+    {
+      "symbol": "MRVL",
+      "cik": 1835632,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:33:37.070Z",
+      "available": true,
+      "name": "Marvell Technology, Inc.",
+      "coverage": {
+        "status": "available",
+        "completeness": 100,
+        "periods": 5,
+        "dataAsOf": "2026-01-31",
+        "checkedAt": "2026-10-27T07:33:36.607Z",
+        "present": 55,
+        "expected": 55,
+        "missing": []
+      },
+      "durationMs": 1017
+    },
+    {
+      "symbol": "PEP",
+      "cik": 77476,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:33:40.490Z",
+      "available": true,
+      "name": "PepsiCo",
+      "coverage": {
+        "status": "available",
+        "completeness": 100,
+        "periods": 5,
+        "dataAsOf": "2025-12-27",
+        "checkedAt": "2026-10-27T07:33:40.005Z",
+        "present": 55,
+        "expected": 55,
+        "missing": []
+      },
+      "durationMs": 1009
+    },
+    {
+      "symbol": "ADI",
+      "cik": 6281,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:33:43.735Z",
+      "available": true,
+      "name": "ANALOG DEVICES INC",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-11-01",
+        "checkedAt": "2026-10-27T07:33:43.221Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 836
+    },
+    {
+      "symbol": "APH",
+      "cik": 820313,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:33:46.975Z",
+      "available": true,
+      "name": "AMPHENOL CORP /DE/",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:33:46.477Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 829
+    },
+    {
+      "symbol": "ABT",
+      "cik": 1800,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:33:50.109Z",
+      "available": true,
+      "name": "ABBOTT LABORATORIES",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:33:49.692Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 726
+    },
+    {
+      "symbol": "PFE",
+      "cik": 78003,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:33:53.244Z",
+      "available": true,
+      "name": "PFIZER INC",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:33:52.767Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "operatingIncome"
+        ]
+      },
+      "durationMs": 732
+    },
+    {
+      "symbol": "TMUS",
+      "cik": 1283699,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:33:56.496Z",
+      "available": true,
+      "name": "T-Mobile US, Inc.",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:33:56.002Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "grossProfit"
+        ]
+      },
+      "durationMs": 841
+    },
+    {
+      "symbol": "BUD",
+      "cik": 1668717,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:33:59.599Z",
+      "available": true,
+      "name": "Anheuser-Busch InBev SA/NV",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:33:59.234Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 700
+    },
+    {
+      "symbol": "NOW",
+      "cik": 1373715,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:34:02.738Z",
+      "available": true,
+      "name": "ServiceNow, Inc.",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:34:02.345Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 731
+    },
+    {
+      "symbol": "DHR",
+      "cik": 313616,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:34:06.097Z",
+      "available": true,
+      "name": "DANAHER CORP /DE/",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:34:05.446Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "cash"
+        ]
+      },
+      "durationMs": 957
+    },
+    {
+      "symbol": "ISRG",
+      "cik": 1035267,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:34:09.424Z",
+      "available": true,
+      "name": "INTUITIVE SURGICAL INC",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:34:08.812Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 920
+    },
+    {
+      "symbol": "ACN",
+      "cik": 1467373,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:34:12.612Z",
+      "available": true,
+      "name": "Accenture plc",
+      "coverage": {
+        "status": "available",
+        "completeness": 100,
+        "periods": 5,
+        "dataAsOf": "2026-08-31",
+        "checkedAt": "2026-10-27T07:34:12.120Z",
+        "present": 55,
+        "expected": 55,
+        "missing": []
+      },
+      "durationMs": 785
+    },
+    {
+      "symbol": "SCCO",
+      "cik": 1001838,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:34:16.402Z",
+      "available": true,
+      "name": "SOUTHERN COPPER CORP/",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:34:15.483Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 1385
+    },
+    {
+      "symbol": "BA",
+      "cik": 12927,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:34:19.654Z",
+      "available": true,
+      "name": "BOEING CO",
+      "coverage": {
+        "status": "available",
+        "completeness": 100,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:34:19.166Z",
+        "present": 55,
+        "expected": 55,
+        "missing": []
+      },
+      "durationMs": 842
+    },
+    {
+      "symbol": "STX",
+      "cik": 1137789,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:34:22.902Z",
+      "available": true,
+      "name": "Seagate Technology Holdings plc",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2026-07-03",
+        "checkedAt": "2026-10-27T07:34:22.396Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 843
+    },
+    {
+      "symbol": "UL",
+      "cik": 217410,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:34:25.964Z",
+      "available": true,
+      "name": "UNILEVER PLC",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:34:25.618Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 661
+    },
+    {
+      "symbol": "ETN",
+      "cik": 1551182,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:34:29.458Z",
+      "available": true,
+      "name": "Eaton Corp plc",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:34:29.035Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "operatingIncome"
+        ]
+      },
+      "durationMs": 1088
+    },
+    {
+      "symbol": "VRTX",
+      "cik": 875320,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:34:32.772Z",
+      "available": true,
+      "name": "VERTEX PHARMACEUTICALS INC / MA",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:34:32.162Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 906
+    },
+    {
+      "symbol": "LMT",
+      "cik": 936468,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:34:36.564Z",
+      "available": true,
+      "name": "LOCKHEED MARTIN CORP",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:34:36.012Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 1380
+    },
+    {
+      "symbol": "SPGI",
+      "cik": 64040,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:34:39.847Z",
+      "available": true,
+      "name": "S&P Global Inc.",
+      "coverage": {
+        "status": "available",
+        "completeness": 100,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:34:39.378Z",
+        "present": 55,
+        "expected": 55,
+        "missing": []
+      },
+      "durationMs": 882
+    },
+    {
+      "symbol": "WDC",
+      "cik": 106040,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:34:43.016Z",
+      "available": true,
+      "name": "WESTERN DIGITAL CORP",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2026-07-03",
+        "checkedAt": "2026-10-27T07:34:42.559Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 764
+    },
+    {
+      "symbol": "BMY",
+      "cik": 14272,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:34:46.597Z",
+      "available": true,
+      "name": "BRISTOL MYERS SQUIBB CO",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:34:45.921Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "operatingIncome"
+        ]
+      },
+      "durationMs": 1165
+    },
+    {
+      "symbol": "MPC",
+      "cik": 1510295,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:34:49.988Z",
+      "available": true,
+      "name": "Marathon Petroleum Corp",
+      "coverage": {
+        "status": "available",
+        "completeness": 100,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:34:49.546Z",
+        "present": 55,
+        "expected": 55,
+        "missing": []
+      },
+      "durationMs": 977
+    },
+    {
+      "symbol": "FTNT",
+      "cik": 1262039,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:34:53.560Z",
+      "available": true,
+      "name": "Fortinet, Inc.",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:34:52.961Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 1164
+    },
+    {
+      "symbol": "MO",
+      "cik": 764180,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:34:56.779Z",
+      "available": true,
+      "name": "ALTRIA GROUP, INC.",
+      "coverage": {
+        "status": "available",
+        "completeness": 100,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:34:56.292Z",
+        "present": 55,
+        "expected": 55,
+        "missing": []
+      },
+      "durationMs": 812
+    },
+    {
+      "symbol": "MDT",
+      "cik": 1613103,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:34:59.904Z",
+      "available": true,
+      "name": "Medtronic plc",
+      "coverage": {
+        "status": "available",
+        "completeness": 100,
+        "periods": 5,
+        "dataAsOf": "2026-04-24",
+        "checkedAt": "2026-10-27T07:34:59.489Z",
+        "present": 55,
+        "expected": 55,
+        "missing": []
+      },
+      "durationMs": 720
+    },
+    {
+      "symbol": "VLO",
+      "cik": 1035002,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:35:03.229Z",
+      "available": true,
+      "name": "VALERO ENERGY CORP/TX",
+      "coverage": {
+        "status": "available",
+        "completeness": 92.7,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:35:02.794Z",
+        "present": 51,
+        "expected": 55,
+        "missing": [
+          "capex"
+        ]
+      },
+      "durationMs": 918
+    },
+    {
+      "symbol": "SPOT",
+      "cik": 1639920,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:35:06.429Z",
+      "available": true,
+      "name": "Spotify Technology S.A.",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:35:06.080Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 789
+    },
+    {
+      "symbol": "LOW",
+      "cik": 60667,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:35:09.626Z",
+      "available": true,
+      "name": "LOWES COMPANIES INC",
+      "coverage": {
+        "status": "available",
+        "completeness": 94.5,
+        "periods": 5,
+        "dataAsOf": "2026-01-30",
+        "checkedAt": "2026-10-27T07:35:09.142Z",
+        "present": 52,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 787
+    },
+    {
+      "symbol": "PH",
+      "cik": 76334,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:35:12.885Z",
+      "available": true,
+      "name": "Parker-Hannifin Corp",
+      "coverage": {
+        "status": "available",
+        "completeness": 100,
+        "periods": 5,
+        "dataAsOf": "2026-06-30",
+        "checkedAt": "2026-10-27T07:35:12.400Z",
+        "present": 55,
+        "expected": 55,
+        "missing": []
+      },
+      "durationMs": 844
+    },
+    {
+      "symbol": "SNOW",
+      "cik": 1640147,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:35:16.223Z",
+      "available": true,
+      "name": "Snowflake Inc.",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2026-01-31",
+        "checkedAt": "2026-10-27T07:35:15.858Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 937
+    },
+    {
+      "symbol": "EQNR",
+      "cik": 1140625,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:35:19.366Z",
+      "available": true,
+      "name": "EQUINOR ASA",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:35:18.917Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 741
+    },
+    {
+      "symbol": "NET",
+      "cik": 1477333,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:35:22.644Z",
+      "available": true,
+      "name": "Cloudflare, Inc.",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:35:22.218Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 859
+    },
+    {
+      "symbol": "ENB",
+      "cik": 895728,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:35:26.002Z",
+      "available": true,
+      "name": "ENBRIDGE INC",
+      "coverage": {
+        "status": "available",
+        "completeness": 92.7,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:35:25.509Z",
+        "present": 51,
+        "expected": 55,
+        "missing": [
+          "grossProfit"
+        ]
+      },
+      "durationMs": 955
+    },
+    {
+      "symbol": "ADBE",
+      "cik": 796343,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:35:29.052Z",
+      "available": true,
+      "name": "Adobe",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-11-28",
+        "checkedAt": "2026-10-27T07:32:20.275Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 640
+    },
+    {
+      "symbol": "GSK",
+      "cik": 1131399,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:35:32.482Z",
+      "available": true,
+      "name": "GSK plc",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:35:32.117Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 1016
+    },
+    {
+      "symbol": "TT",
+      "cik": 1466258,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:35:36.019Z",
+      "available": true,
+      "name": "Trane Technologies plc",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:35:35.436Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "grossProfit"
+        ]
+      },
+      "durationMs": 1123
+    },
+    {
+      "symbol": "ELV",
+      "cik": 1156039,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:35:39.540Z",
+      "available": true,
+      "name": "Elevance Health, Inc.",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:35:38.937Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "grossProfit"
+        ]
+      },
+      "durationMs": 1115
+    },
+    {
+      "symbol": "WM",
+      "cik": 823768,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:35:42.693Z",
+      "available": true,
+      "name": "WASTE MANAGEMENT INC",
+      "coverage": {
+        "status": "available",
+        "completeness": 100,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:35:42.241Z",
+        "present": 55,
+        "expected": 55,
+        "missing": []
+      },
+      "durationMs": 743
+    },
+    {
+      "symbol": "GD",
+      "cik": 40533,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:35:45.933Z",
+      "available": true,
+      "name": "GENERAL DYNAMICS CORP",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:35:45.412Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "grossProfit"
+        ]
+      },
+      "durationMs": 831
+    },
+    {
+      "symbol": "EQIX",
+      "cik": 1101239,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:35:49.289Z",
+      "available": true,
+      "name": "EQUINIX INC",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:35:48.832Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 953
+    },
+    {
+      "symbol": "DDOG",
+      "cik": 1561550,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:35:52.545Z",
+      "available": true,
+      "name": "Datadog, Inc.",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:35:52.063Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 844
+    },
+    {
+      "symbol": "FCX",
+      "cik": 831259,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:35:55.795Z",
+      "available": true,
+      "name": "FREEPORT-MCMORAN INC",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:35:55.240Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 842
+    },
+    {
+      "symbol": "MELI",
+      "cik": 1099590,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:35:58.949Z",
+      "available": true,
+      "name": "MERCADOLIBRE INC",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:35:58.517Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 743
+    },
+    {
+      "symbol": "CEG",
+      "cik": 1868275,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:36:02.379Z",
+      "available": true,
+      "name": "Constellation Energy Corp",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:36:01.810Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "grossProfit"
+        ]
+      },
+      "durationMs": 1029
+    },
+    {
+      "symbol": "MMM",
+      "cik": 66740,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:36:05.585Z",
+      "available": true,
+      "name": "3M CO",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:36:05.099Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "cash"
+        ]
+      },
+      "durationMs": 794
+    },
+    {
+      "symbol": "CTAS",
+      "cik": 723254,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:36:08.770Z",
+      "available": true,
+      "name": "CINTAS CORP",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2026-05-31",
+        "checkedAt": "2026-10-27T07:36:08.338Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 782
+    },
+    {
+      "symbol": "MCO",
+      "cik": 1059556,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:36:12.187Z",
+      "available": true,
+      "name": "MOODYS CORP /DE/",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:36:11.678Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 1004
+    },
+    {
+      "symbol": "ASX",
+      "cik": 1122411,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:36:15.482Z",
+      "available": true,
+      "name": "ASE Technology Holding Co., Ltd.",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:36:15.006Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 879
+    },
+    {
+      "symbol": "MDLZ",
+      "cik": 1103982,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:36:18.768Z",
+      "available": true,
+      "name": "Mondelez International, Inc.",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:36:18.204Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "cash"
+        ]
+      },
+      "durationMs": 884
+    },
+    {
+      "symbol": "PWR",
+      "cik": 1050915,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:36:22.036Z",
+      "available": true,
+      "name": "QUANTA SERVICES, INC.",
+      "coverage": {
+        "status": "available",
+        "completeness": 100,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:36:21.454Z",
+        "present": 55,
+        "expected": 55,
+        "missing": []
+      },
+      "durationMs": 857
+    },
+    {
+      "symbol": "ECL",
+      "cik": 31462,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:36:25.184Z",
+      "available": true,
+      "name": "ECOLAB INC.",
+      "coverage": {
+        "status": "available",
+        "completeness": 100,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:36:24.732Z",
+        "present": 55,
+        "expected": 55,
+        "missing": []
+      },
+      "durationMs": 740
+    },
+    {
+      "symbol": "SNPS",
+      "cik": 883241,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:36:28.387Z",
+      "available": true,
+      "name": "SYNOPSYS INC",
+      "coverage": {
+        "status": "available",
+        "completeness": 92.7,
+        "periods": 5,
+        "dataAsOf": "2025-10-31",
+        "checkedAt": "2026-10-27T07:36:27.895Z",
+        "present": 51,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 791
+    },
+    {
+      "symbol": "NOC",
+      "cik": 1133421,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:36:31.673Z",
+      "available": true,
+      "name": "NORTHROP GRUMMAN CORP /DE/",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:36:31.122Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "grossProfit"
+        ]
+      },
+      "durationMs": 877
+    },
+    {
+      "symbol": "CL",
+      "cik": 21665,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:36:35.670Z",
+      "available": true,
+      "name": "COLGATE PALMOLIVE CO",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:36:34.907Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 1592
+    },
+    {
+      "symbol": "RCL",
+      "cik": 884887,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:36:38.841Z",
+      "available": true,
+      "name": "ROYAL CARIBBEAN CRUISES LTD",
+      "coverage": {
+        "status": "available",
+        "completeness": 100,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:36:38.400Z",
+        "present": 55,
+        "expected": 55,
+        "missing": []
+      },
+      "durationMs": 760
+    },
+    {
+      "symbol": "NTES",
+      "cik": 1110646,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:36:42.313Z",
+      "available": true,
+      "name": "NetEase, Inc.",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:36:41.856Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 1067
+    },
+    {
+      "symbol": "NSC",
+      "cik": 702165,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:36:45.554Z",
+      "available": true,
+      "name": "NORFOLK SOUTHERN CORP",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:36:45.146Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "grossProfit"
+        ]
+      },
+      "durationMs": 833
+    },
+    {
+      "symbol": "KMI",
+      "cik": 1506307,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:36:48.765Z",
+      "available": true,
+      "name": "KINDER MORGAN, INC.",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:36:48.276Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "grossProfit"
+        ]
+      },
+      "durationMs": 807
+    },
+    {
+      "symbol": "VRT",
+      "cik": 1674101,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:36:52.040Z",
+      "available": true,
+      "name": "Vertiv Holdings Co",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:36:51.618Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 871
+    },
+    {
+      "symbol": "MRNA",
+      "cik": 1682852,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:36:55.227Z",
+      "available": true,
+      "name": "Moderna, Inc.",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:36:54.847Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 779
+    },
+    {
+      "symbol": "CMI",
+      "cik": 26172,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:36:58.492Z",
+      "available": true,
+      "name": "CUMMINS INC",
+      "coverage": {
+        "status": "available",
+        "completeness": 94.5,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:36:57.978Z",
+        "present": 52,
+        "expected": 55,
+        "missing": [
+          "cash"
+        ]
+      },
+      "durationMs": 850
+    },
+    {
+      "symbol": "RELX",
+      "cik": 929869,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:37:01.567Z",
+      "available": true,
+      "name": "RELX PLC",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:37:01.210Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 668
+    },
+    {
+      "symbol": "URI",
+      "cik": 1067701,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:37:05.048Z",
+      "available": true,
+      "name": "UNITED RENTALS, INC.",
+      "coverage": {
+        "status": "available",
+        "completeness": 98.2,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:37:04.620Z",
+        "present": 54,
+        "expected": 55,
+        "missing": [
+          "capex"
+        ]
+      },
+      "durationMs": 1067
+    },
+    {
+      "symbol": "LITE",
+      "cik": 1633978,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:37:08.199Z",
+      "available": true,
+      "name": "Lumentum Holdings Inc.",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2026-06-27",
+        "checkedAt": "2026-10-27T07:37:07.772Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 743
+    },
+    {
+      "symbol": "BSX",
+      "cik": 885725,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:37:11.524Z",
+      "available": true,
+      "name": "BOSTON SCIENTIFIC CORP",
+      "coverage": {
+        "status": "available",
+        "completeness": 94.5,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:37:10.943Z",
+        "present": 52,
+        "expected": 55,
+        "missing": []
+      },
+      "durationMs": 918
+    },
+    {
+      "symbol": "COR",
+      "cik": 1140859,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:37:14.704Z",
+      "available": true,
+      "name": "Cencora, Inc.",
+      "coverage": {
+        "status": "available",
+        "completeness": 94.5,
+        "periods": 5,
+        "dataAsOf": "2025-09-30",
+        "checkedAt": "2026-10-27T07:37:14.256Z",
+        "present": 52,
+        "expected": 55,
+        "missing": []
+      },
+      "durationMs": 772
+    },
+    {
+      "symbol": "AON",
+      "cik": 315293,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:37:17.883Z",
+      "available": true,
+      "name": "Aon plc",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:37:17.390Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "grossProfit"
+        ]
+      },
+      "durationMs": 769
+    },
+    {
+      "symbol": "BE",
+      "cik": 1664703,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:37:20.975Z",
+      "available": true,
+      "name": "Bloom Energy Corp",
+      "coverage": {
+        "status": "available",
+        "completeness": 94.5,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:37:20.598Z",
+        "present": 52,
+        "expected": 55,
+        "missing": []
+      },
+      "durationMs": 687
+    },
+    {
+      "symbol": "TDG",
+      "cik": 1260221,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:37:24.143Z",
+      "available": true,
+      "name": "TransDigm Group INC",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-09-30",
+        "checkedAt": "2026-10-27T07:37:23.694Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 754
+    },
+    {
+      "symbol": "MSTR",
+      "cik": 1050446,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:37:27.263Z",
+      "available": true,
+      "name": "Strategy Inc",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:37:26.827Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 706
+    },
+    {
+      "symbol": "NXPI",
+      "cik": 1413447,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:37:30.760Z",
+      "available": true,
+      "name": "NXP Semiconductors N.V.",
+      "coverage": {
+        "status": "available",
+        "completeness": 100,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:37:30.335Z",
+        "present": 55,
+        "expected": 55,
+        "missing": []
+      },
+      "durationMs": 1086
+    },
+    {
+      "symbol": "CAH",
+      "cik": 721371,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:37:34.053Z",
+      "available": true,
+      "name": "CARDINAL HEALTH INC",
+      "coverage": {
+        "status": "available",
+        "completeness": 94.5,
+        "periods": 5,
+        "dataAsOf": "2026-06-30",
+        "checkedAt": "2026-10-27T07:37:33.594Z",
+        "present": 52,
+        "expected": 55,
+        "missing": []
+      },
+      "durationMs": 884
+    },
+    {
+      "symbol": "CRH",
+      "cik": 849395,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:37:37.918Z",
+      "available": true,
+      "name": "CRH PUBLIC LTD CO",
+      "coverage": {
+        "status": "available",
+        "completeness": 98.2,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:37:37.534Z",
+        "present": 54,
+        "expected": 55,
+        "missing": []
+      },
+      "durationMs": 1459
+    },
+    {
+      "symbol": "MPWR",
+      "cik": 1280452,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:37:41.243Z",
+      "available": true,
+      "name": "MONOLITHIC POWER SYSTEMS, INC.",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:37:40.733Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 918
+    },
+    {
+      "symbol": "NDAQ",
+      "cik": 1120193,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:37:44.450Z",
+      "available": true,
+      "name": "NASDAQ, INC.",
+      "coverage": {
+        "status": "available",
+        "completeness": 100,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:37:43.959Z",
+        "present": 55,
+        "expected": 55,
+        "missing": []
+      },
+      "durationMs": 801
+    },
+    {
+      "symbol": "TEAM",
+      "cik": 1650372,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:37:47.530Z",
+      "available": true,
+      "name": "Atlassian Corp",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2026-06-30",
+        "checkedAt": "2026-10-27T07:37:47.182Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 677
+    },
+    {
+      "symbol": "AME",
+      "cik": 1037868,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:37:50.724Z",
+      "available": true,
+      "name": "AMETEK INC/",
+      "coverage": {
+        "status": "available",
+        "completeness": 100,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:37:50.257Z",
+        "present": 55,
+        "expected": 55,
+        "missing": []
+      },
+      "durationMs": 779
+    },
+    {
+      "symbol": "EBAY",
+      "cik": 1065088,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:37:54.082Z",
+      "available": true,
+      "name": "EBAY INC",
+      "coverage": {
+        "status": "available",
+        "completeness": 100,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:37:53.639Z",
+        "present": 55,
+        "expected": 55,
+        "missing": []
+      },
+      "durationMs": 950
+    },
+    {
+      "symbol": "KEYS",
+      "cik": 1601046,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:37:57.252Z",
+      "available": true,
+      "name": "Keysight Technologies, Inc.",
+      "coverage": {
+        "status": "available",
+        "completeness": 92.7,
+        "periods": 5,
+        "dataAsOf": "2025-10-31",
+        "checkedAt": "2026-10-27T07:37:56.764Z",
+        "present": 51,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 758
+    },
+    {
+      "symbol": "EW",
+      "cik": 1099800,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:38:00.710Z",
+      "available": true,
+      "name": "Edwards Lifesciences Corp",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:38:00.256Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 1051
+    },
+    {
+      "symbol": "ABEV",
+      "cik": 1565025,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:38:04.056Z",
+      "available": true,
+      "name": "AMBEV S.A.",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:38:03.700Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 944
+    },
+    {
+      "symbol": "HUM",
+      "cik": 49071,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:38:07.573Z",
+      "available": true,
+      "name": "HUMANA INC",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:38:07.098Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "grossProfit"
+        ]
+      },
+      "durationMs": 1111
+    },
+    {
+      "symbol": "CCEP",
+      "cik": 1650107,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:38:10.983Z",
+      "available": true,
+      "name": "COCA-COLA EUROPACIFIC PARTNERS plc",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:38:10.597Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 999
+    },
+    {
+      "symbol": "A",
+      "cik": 1090872,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:38:14.160Z",
+      "available": true,
+      "name": "AGILENT TECHNOLOGIES, INC.",
+      "coverage": {
+        "status": "available",
+        "completeness": 100,
+        "periods": 5,
+        "dataAsOf": "2025-10-31",
+        "checkedAt": "2026-10-27T07:38:13.677Z",
+        "present": 55,
+        "expected": 55,
+        "missing": []
+      },
+      "durationMs": 771
+    },
+    {
+      "symbol": "TER",
+      "cik": 97210,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:38:17.511Z",
+      "available": true,
+      "name": "TERADYNE, INC",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:38:17.041Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 938
+    },
+    {
+      "symbol": "KDP",
+      "cik": 1418135,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:38:20.980Z",
+      "available": true,
+      "name": "Keurig Dr Pepper Inc.",
+      "coverage": {
+        "status": "available",
+        "completeness": 100,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:38:20.446Z",
+        "present": 55,
+        "expected": 55,
+        "missing": []
+      },
+      "durationMs": 1067
+    },
+    {
+      "symbol": "F",
+      "cik": 37996,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:38:24.100Z",
+      "available": true,
+      "name": "FORD MOTOR CO",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:38:23.665Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 715
+    },
+    {
+      "symbol": "XYZ",
+      "cik": 1512673,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:38:27.937Z",
+      "available": true,
+      "name": "Block, Inc.",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:38:27.495Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 1425
+    },
+    {
+      "symbol": "WCN",
+      "cik": 1318220,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:38:31.194Z",
+      "available": true,
+      "name": "Waste Connections, Inc.",
+      "coverage": {
+        "status": "available",
+        "completeness": 100,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:38:30.744Z",
+        "present": 55,
+        "expected": 55,
+        "missing": []
+      },
+      "durationMs": 855
+    },
+    {
+      "symbol": "TEVA",
+      "cik": 818686,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:38:34.560Z",
+      "available": true,
+      "name": "TEVA PHARMACEUTICAL INDUSTRIES LTD",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:38:34.137Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 948
+    },
+    {
+      "symbol": "ROK",
+      "cik": 1024478,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:38:37.749Z",
+      "available": true,
+      "name": "ROCKWELL AUTOMATION, INC",
+      "coverage": {
+        "status": "available",
+        "completeness": 92.7,
+        "periods": 5,
+        "dataAsOf": "2025-09-30",
+        "checkedAt": "2026-10-27T07:38:37.293Z",
+        "present": 51,
+        "expected": 55,
+        "missing": []
+      },
+      "durationMs": 784
+    },
+    {
+      "symbol": "SE",
+      "cik": 1703399,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:38:40.831Z",
+      "available": true,
+      "name": "Sea Ltd",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:38:40.484Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 672
+    },
+    {
+      "symbol": "CIEN",
+      "cik": 936395,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:38:44.029Z",
+      "available": true,
+      "name": "CIENA CORP",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-11-01",
+        "checkedAt": "2026-10-27T07:38:43.576Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 795
+    },
+    {
+      "symbol": "HLN",
+      "cik": 1900304,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:38:47.090Z",
+      "available": true,
+      "name": "Haleon plc",
+      "coverage": {
+        "status": "available",
+        "completeness": 90.9,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:38:46.764Z",
+        "present": 50,
+        "expected": 55,
+        "missing": [
+          "debt"
+        ]
+      },
+      "durationMs": 649
+    },
+    {
+      "symbol": "FIX",
+      "cik": 1035983,
+      "httpStatus": 200,
+      "checkedAt": "2026-10-27T07:38:50.358Z",
+      "available": true,
+      "name": "COMFORT SYSTEMS USA INC",
+      "coverage": {
+        "status": "available",
+        "completeness": 100,
+        "periods": 5,
+        "dataAsOf": "2025-12-31",
+        "checkedAt": "2026-10-27T07:38:49.940Z",
+        "present": 55,
+        "expected": 55,
+        "missing": []
+      },
+      "durationMs": 854
+    }
+  ],
+  "completedAt": "2026-10-27T07:38:52.765Z",
+  "summary": {
+    "candidates": 125,
+    "checked": 125,
+    "available": 125,
+    "failedOrLimited": 0
+  },
+  "sourceCommit": "6cec3cbb4e51b32638004d04b1929a96c838eeba",
+  "parserSha256": "355f2ae85f26e7f65acd6ef4a23cb2e2e92d3b3ee8960c1d1208bb35a7e512de"
+}

@@ -133,6 +133,12 @@ export const aiCredentials = sqliteTable('ai_credentials', {
   scope: text('scope').primaryKey(), ciphertext: text('ciphertext').notNull(), suffix: text('suffix').notNull(), updatedAt: text('updated_at').notNull(),
 });
 export const aiConfig = sqliteTable('ai_config', { id: text('id').primaryKey(), payload: text('payload').notNull() });
+export const marketEvidenceCache = sqliteTable('market_evidence_cache', {
+  cacheKey: text('cache_key').primaryKey(), payload: text('payload').notNull(), expiresAt: integer('expires_at').notNull(),
+}, table => [index('market_evidence_expiry').on(table.expiresAt)]);
+export const marketRequestLimits = sqliteTable('market_request_limits', {
+  bucket: text('bucket').primaryKey(), count: integer('count').notNull().default(0), expiresAt: integer('expires_at').notNull(),
+});
 export const aiPasses = sqliteTable('ai_passes', {
   id: text('id').primaryKey(), codeHash: text('code_hash').notNull().unique(), label: text('label').notNull(), maxClaims: integer('max_claims').notNull(),
   claims: integer('claims').notNull().default(0), tokenLimit: integer('token_limit').notNull(), requestLimit: integer('request_limit').notNull(),

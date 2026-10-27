@@ -5,6 +5,7 @@ import test from "node:test";
 
 async function moduleUrl(name: string, dependencies: Record<string, string> = {}): Promise<string> {
   let source = stripTypeScriptTypes(await readFile(new URL(`../lib/${name}.ts`, import.meta.url), "utf8"));
+  for (const match of [...source.matchAll(/from "\.\/([a-z-]+)"/g)]) if (!dependencies[match[1]]) dependencies[match[1]] = await moduleUrl(match[1]);
   for (const [dependency, url] of Object.entries(dependencies)) source = source.replaceAll(`"./${dependency}"`, `"${url}"`);
   return `data:text/javascript;base64,${Buffer.from(source).toString("base64")}`;
 }

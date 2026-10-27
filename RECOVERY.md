@@ -6,7 +6,7 @@
 
 The runtime baseline is GitHub commit `00f0297d7ab209e8b4a7e37ae37d5dcabb335c03`, which passed 82 tests, typecheck and build. The recovery tag also includes subsequent documentation updates; these do not change the deployed runtime.
 
-Production is Sites version **11** at `https://finscopehq.com`:
+The checkpoint's production baseline is Sites version **11** at `https://finscopehq.com`. This is the preserved rollback target, not a statement that version 11 is still the current release. See `apps/finscope/docs/HANDOFF.md` for newer deployment verification.
 
 - Project: `appgprj_6adfe53d05bc8191983062a369584a6a`
 - Saved version: `appgprj_6adfe53d05bc8191983062a369584a6a~appgver_93127bbe4a5c819199c795fb90a57f00`
@@ -15,6 +15,16 @@ Production is Sites version **11** at `https://finscopehq.com`:
 - Database migrations: 0000 through 0005. Never edit or replay a deployed migration.
 
 ## Recover source without discarding newer work
+
+The broad financial-coverage release was published as Sites version **13** on 27 October 2026. It adds only migration `0006_market_evidence_cache.sql`; the original stable tag remains intact.
+
+- Saved version: `appgprj_6adfe53d05bc8191983062a369584a6a~appgver_4b0a96898b9c81918c5989856334c162`
+- Published source: `1f756f1cc109b77ae66dc76911282501ffb87818`
+- Successful deployment: `appgdep_6ae05578f41c8191bdeba757e3f6af0a`
+- Local deployment archive: `outputs/finscope-broad-coverage-v13.tar.gz` (ignored by Git).
+- Evidence: `apps/finscope/docs/coverage/2026-10-27-local.json` and `2026-10-27-production.json`. The 125-issuer production retrieval audit ran on version 12; version 13 keeps the same financial adapter and fixes consecutive company selection. Apple and Tesla were generated with normal guest credits, compared, exported and reopened from the production archive. The published mobile layout and all six chart series were checked separately.
+
+These artifacts preserve code/builds, not a complete production database backup. Restore code through the existing project and keep the account database and encryption secrets intact.
 
 Fetch the tag, then open it in a separate directory rather than resetting the current checkout:
 

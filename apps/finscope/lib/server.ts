@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getUser, type AuthUser } from "@/lib/auth";
 import { getGuest, guestUsage, guestView, claimGuestJob, releaseGuestJob, GuestError, type GuestActor } from "@/lib/guest";
 import { generateReport, getDemoReport, searchCompanies } from "@/lib/market";
+import { evidenceStorage, admitMarketSearch } from "@/lib/market-storage";
 import { aiStatus, generateMeteredAnalysis, sponsorReady } from "@/lib/ai-access";
 import { getCaseStudy } from "@/lib/case-studies";
 import type { Preferences, Report, Schedule, Viewer } from "@/lib/types";
@@ -35,11 +36,14 @@ export function database(): D1Database {
 }
 
 function providerEnv(): Record<string, string | undefined> {
-  return { OPENAI_API_KEY: env.OPENAI_API_KEY, OPENAI_MODEL: env.OPENAI_MODEL, FMP_API_KEY: env.FMP_API_KEY, SEC_USER_AGENT: env.SEC_USER_AGENT };
+  const contact = env.ADMIN_EMAIL?.trim();
+  const secIdentity = env.SEC_USER_AGENT || (contact && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact) ? `Finscope/1.0 financial data contact ${contact}` : undefined);
+  return { OPENAI_API_KEY: env.OPENAI_API_KEY, OPENAI_MODEL: env.OPENAI_MODEL, FMP_API_KEY: env.FMP_API_KEY, SEC_USER_AGENT: secIdentity };
 }
 
 export function capabilities(): Viewer["capabilities"] {
-  const broadCoverage = Boolean((env.SEC_USER_AGENT && /[^\s@]+@[^\s@]+\.[^\s@]+/.test(env.SEC_USER_AGENT)) || env.FMP_API_KEY?.trim());
+  // Configuration describes the route; per-company verification determines availability.
+  const broadCoverage = Boolean(providerEnv().SEC_USER_AGENT || env.FMP_API_KEY?.trim());
   const directIssuers = ["MSFT"];
   const liveData = directIssuers.length > 0 || broadCoverage;
   return { liveData, broadCoverage, directIssuers, ai: Boolean(env.OPENAI_API_KEY?.trim()), scheduler: env.SCHEDULER_ENABLED === "true" && Boolean(env.CRON_SECRET && env.CRON_SECRET.length >= 32) && liveData };
@@ -58,7 +62,7 @@ export async function apiHandler(work: () => Promise<Response>): Promise<Respons
     if (error instanceof Error && error.name === "MarketDataError" && "code" in error) {
       const safeMessages: Record<string, string> = {
         NO_DATA: "Comparable annual financials are unavailable for this company. Check the data provider or select another issuer. No substitute figures were generated.",
-        DATA_COVERAGE_UNAVAILABLE: "Direct financial-statement retrieval supports Microsoft (MSFT). Other issuers require configured SEC access or a financial-data provider.",
+        DATA_COVERAGE_UNAVAILABLE: "Financial disclosures are not connected for this market. Search for a company with verified report availability.",
         ISSUER_UNAVAILABLE: "Microsoft's official financial statements could not be retrieved. Please retry shortly. No older or synthetic figures were substituted.",
         ISSUER_FORMAT_CHANGED: "The issuer changed its published statement format. Extraction stopped to avoid reporting incorrect financial figures.",
         ISSUER_INCOMPLETE: "The official statements did not provide the required five-year financial comparison. No estimated values were inserted.",
@@ -232,12 +236,12 @@ async function recordActivity(userId: string, action: string, symbols: string[])
 
 function validateReportCoverage(symbols: string[], mode: "demo" | "live") {
   const available = capabilities();
-  if (mode === "live" && !available.broadCoverage && symbols.some((symbol) => !available.directIssuers?.includes(symbol))) throw new ApiError(503, "DATA_COVERAGE_UNAVAILABLE", "Direct financial-statement retrieval currently supports Microsoft (MSFT). Other companies require a configured SEC or financial-data provider. No synthetic figures will be substituted.");
+  if (mode === "live" && !available.broadCoverage && symbols.some((symbol) => !available.directIssuers?.includes(symbol))) throw new ApiError(503, "DATA_COVERAGE_UNAVAILABLE", "Financial disclosures are not connected for this market. Search for a company with verified report availability.");
 }
 
 async function buildFinancialReports(symbols: string[], mode: "demo" | "live"): Promise<Report[]> {
   const settled = await Promise.allSettled(symbols.map(async (symbol) => {
-    const base = mode === "demo" ? getDemoReport(symbol) : await generateReport(symbol, { allowDemoFallback: false, env: providerEnv() });
+    const base = mode === "demo" ? getDemoReport(symbol) : await generateReport(symbol, { allowDemoFallback: false, env: providerEnv(), cache: evidenceStorage(database()) });
     return { ...base, id: crypto.randomUUID(), generatedAt: new Date().toISOString() } as Report;
   }));
   const failure = settled.find((result) => result.status === "rejected");
@@ -362,9 +366,12 @@ export function handleReportAI(request: Request, id: string): Promise<Response> 
 
 export function handleCompanies(request: Request): Promise<Response> {
   return apiHandler(async () => {
-    const query = z.string().max(80).parse(new URL(request.url).searchParams.get("q") || "");
+    const params = new URL(request.url).searchParams;
+    const query = z.string().max(80).parse(params.get("q") || "");
+    const sector = z.string().max(40).parse(params.get("sector") || "");
     const user = await getUser();
-    const live = capabilities().liveData && Boolean(user);
+    const live = capabilities().liveData;
+    if (!await admitMarketSearch(database(), request.headers.get("CF-Connecting-IP") || "local-preview")) throw new ApiError(429, "SEARCH_RATE_LIMIT", "Please slow down your searches. Company lookup is limited to 30 requests per minute.");
     if (live && user && query.trim()) {
       await ensureProfile(user);
       const now = new Date();
@@ -376,7 +383,8 @@ export function handleCompanies(request: Request): Promise<Response> {
         AND (SELECT COUNT(*) FROM report_jobs WHERE user_id=? AND kind='search' AND quota_day=?)<300 RETURNING id`).bind(crypto.randomUUID(), user.userId, day, now.getTime(), now.toISOString(), user.userId, day, new Date(now.getTime() - 60_000).toISOString(), user.userId, day).first();
       if (!admitted) throw new ApiError(429, "SEARCH_RATE_LIMIT", "Please slow down your searches. Live company lookup is limited to 30 requests per minute and 300 per day.");
     }
-    const companies = await searchCompanies(query, { limit: 12, live, env: providerEnv() });
+    const favorites = user ? await getFavorites(user.userId) : [];
+    const companies = await searchCompanies(query, { limit: query ? 8 : 12, live, sector, favorites, env: providerEnv(), cache: evidenceStorage(database()) });
     return json({ companies });
   });
 }

@@ -6,7 +6,9 @@ Finscope is a financial analysis and planning application hosted through Sites, 
 
 The repository includes an illustrative dataset and a sourced Microsoft FY2021–FY2025 case. The published case is a frozen annual-report snapshot through **30 June 2025**. Saving it changes the archive timestamp; it does not refresh the figures. The server copies only its own curated evidence and preserves the source note and financial reporting date.
 
-The Microsoft direct adapter discovers and retrieves published financial statements without a provider key. Broader issuer coverage, OpenAI analysis, and scheduled generation need additional configuration. No provider credentials or active scheduling service are supplied in this repository. A configured flag indicates required environment values exist, not that an external service has passed a health check.
+The primary financial path uses SEC's ticker/exchange directory and company-facts APIs with a genuine operator contact in `SEC_USER_AGENT`; no SEC API key is required. It verifies per-company financial availability before enabling main search selection and recommendations. Standardized annual summaries retain reporting dates, currencies, missing fields and original filing provenance. The Microsoft direct adapter remains a fallback. Optional paid providers, AI analysis and scheduled generation need their own configuration. A configured flag is not a provider health check.
+
+The [local 350-issuer adapter audit](coverage/2026-10-27-local.json) records retrieval and normalization results for its stated parser fingerprint. Regenerate after parser changes and use the file's current counts. This is not evidence that every issuer works or that production navigation/save/reopen has passed. Preserve deployment-specific test results separately.
 
 A real local AI integration test completed on **26 October 2026 (America/New_York)**, recorded at `2026-10-27T02:08:18Z`. It analysed Microsoft FY2022–FY2026 using `gpt-6-astra`, returned seven insights with five verified sources, and saved/reopened the completed report. Usage was 22,226 input + 2,039 output = 24,265 tokens. This validates the local path only. Hosted AI connectivity, real email delivery and the hosted account flow require separate verification; saving provider settings is not such a verification.
 
@@ -100,6 +102,14 @@ Local Worker values belong in **`apps/finscope/.dev.vars`**. This file and its v
 
 The live provider path does not silently substitute illustrative figures. Missing evidence produces an explicit error. AI research accepts account-saved public-financial reports, including a saved copy of the frozen curated case, and requires a personal key or a valid sponsored pass. Its analysis stays tied to the financial period; web context does not refresh stored statements.
 
+### Financial provider operations
+
+Apply pending migration `0006_market_evidence_cache.sql` before serving the SEC-backed discovery routes. The D1 cache holds compact public financial evidence and company context for 15 minutes, plus the SEC issuer directory for 12 hours. It does not store raw company-facts documents, credentials or private account analyses. Shared SEC admission reserves one outbound slot per 500 ms; requests fail after a bounded wait when busy. Search may be slower on a cold cache because availability is verified before a result is selectable.
+
+The availability gate is fixed: 11 core observations per displayed annual period, strictly more than 90% populated overall, at least two years, the six latest primary totals present, at most one latest missing field, and a valid non-future reporting date within 550 days. The UI preserves limited/unavailable states. Do not remove missing fields from the denominator to increase coverage. Reporting periods, retrieval timestamps and saved-report timestamps are distinct; no label implies live stock prices.
+
+Financial summaries are the core service. Optional SEC profile/filing and dated employee enrichment can fail without discarding the financial report. Missing jobs, salary or employee-review data must stay unavailable rather than being inferred or presented from a mere external link. See [Data and methodology](DATA.md) for extraction and provenance rules.
+
 ### Administrator access
 
 Set ADMIN_EMAIL to the intended owner’s address, then register and verify that email. Alternatively, sign in to the application and set its exact user.id from /api/me as ADMIN_USER_ID. Neither route accepts a role from a client request. Do not use the local simulated Sites identity. `/api/admin` checks the authenticated ID on every request and returns configuration status, aggregate counts, quotas, and server time. It returns no credential values or other users' research content.
@@ -136,13 +146,13 @@ The server allows **18 research credits per user per UTC day**, shared by intera
 
 No user may have more than **three company jobs active simultaneously**. Atomic D1 admissions enforce both limits across devices. Active leases expire after ten minutes if a Worker is interrupted; release or expiry does not refund daily usage. Quotas reset at midnight UTC independently of the schedule timezone.
 
-Authenticated live company lookup has a separate allowance of 30 requests per minute and 300 per UTC day and consumes no research credits. Anonymous lookup uses the local catalogue. Additional account bounds are 50 watchlist companies, 100 memos, and 50 scenario plans. JSON mutation bodies are limited to 16 KiB. Provider spending caps and hosting-level abuse controls remain operational responsibilities.
+Company lookup, including anonymous and guest discovery, has a shared D1 limit of 30 requests per minute per client address; the ledger stores its hash. Authenticated nonempty live searches additionally retain the account allowance of 30 per minute and 300 per UTC day. Lookup consumes no report credits. All callers use the same evidence-backed search path when live sources are configured. Additional account bounds are 50 watchlist companies, 100 memos, and 50 scenario plans. JSON mutation bodies are limited to 16 KiB. Provider spending caps and hosting-level abuse controls remain operational responsibilities.
 
 ## Database migrations and continuity
 
 `apps/finscope/db/schema.ts` defines the schema; ordered SQL lives in `apps/finscope/drizzle/`. Generate migrations with `npm run db:generate`, then review the SQL before publishing, especially changes to existing data.
 
-This checkout's initial local preview database has already received:
+The ordered migration history is:
 
 1. `0000_lonely_winter_soldier.sql` — account, report, schedule, quota, activity, and memo tables.
 2. `0001_mighty_post.sql` — persisted scenario plans.
@@ -150,8 +160,9 @@ This checkout's initial local preview database has already received:
 4. `0003_broken_master_mold.sql` — encrypted AI credentials, sponsored passes, and usage accounting.
 5. `0004_living_quasimodo.sql` — isolated guest sessions, reports and admission ledger; no verified-account tables are changed.
 6. `0005_clear_guest_validation_runs.sql` — removes only exact, identified initial production QA records so validation does not exhaust visitor allowances; no schema change and no other guest/account data is affected.
+7. `0006_market_evidence_cache.sql` — adds shared public financial-evidence caching and aggregate market-request admission; does not change account/report ownership or delete saved work.
 
-Do not replay those files against this local database. Local initialization did **not** apply production migrations. Sites publication applies checked-in production migrations separately; preserve ordering and follow the Sites workflow.
+Check the migration state and apply only pending files; do not replay already-applied migrations. Local initialization does **not** apply production migrations. Sites publication applies checked-in production migrations separately; preserve ordering and follow the Sites workflow. Keep `stable-2026-10-27` and the recovery instructions intact. A code rollback does not undo schema changes or replace a production data backup.
 
 For a fresh local database, build once to create `dist/server/wrangler.json`, then execute each pending migration in order from `apps/finscope`:
 
@@ -162,6 +173,7 @@ node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1
 node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0003_broken_master_mold.sql
 node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0004_living_quasimodo.sql
 node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0005_clear_guest_validation_runs.sql
+node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0006_market_evidence_cache.sql
 ```
 
 Use `.wrangler/state`, not `.wrangler/state/v3`; Wrangler adds the version suffix. Development and built previews share this directory. Deleting it deletes the local database and simulated user's work. `.sites-runtime/local-db.json`, if present, is an ignored initialization helper rather than production configuration.
@@ -170,6 +182,6 @@ All account reads and writes are scoped to verified user IDs. Reports preserve t
 
 ## Verification and incidents
 
-Run `npm test`, `npm run typecheck`, `npm run lint`, and `npm run build` from `apps/finscope` before release. Backend tests execute migration SQL in SQLite and exercise tenant isolation, concurrent admission, quota boundaries, CSRF, input bounds, schedule dates, and private curated-case saving.
+Run `npm test`, `npm run typecheck` and `npm run build` from `apps/finscope` before release. Lint is an optional additional check when requested or appropriate to the changed scope. Backend tests execute migration SQL in SQLite and exercise tenant isolation, concurrent admission, quota boundaries, CSRF, input bounds, schedule dates, public-evidence caching and private curated-case saving.
 
 For research failures, distinguish missing configuration from provider failure or an exhausted allowance. Check redacted status and runner counts. Errors omit raw provider URLs because they can contain credentials. For database failures, verify the `DB` binding and migration state. For account-continuity problems, verify the same deployed Site and user ID are being used; existing legacy IDs are not interchangeable across unrelated Sites.

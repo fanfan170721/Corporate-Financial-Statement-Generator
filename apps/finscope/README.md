@@ -38,7 +38,11 @@ Application accounts use verified email and password. See [Operations](docs/OPER
 
 For a fresh database, build once and apply ordered SQL in `drizzle/` using the commands in [Operations](docs/OPERATIONS.md#database-migrations-and-continuity). Do not replay migrations against an initialized database. Production migration application is separate from preview state.
 
-No credentials are included. Microsoft (MSFT) financial reports can be generated directly from the issuer's official annual-report pages without a financial-data key. The adapter discovers the latest available report and extracts five fiscal years of income statements, balance sheets and cash flows. It preserves sources, retrieval time, missing values and published units; it never substitutes synthetic data when retrieval fails. Other issuers need compliant `SEC_USER_AGENT` configuration or `FMP_API_KEY`, subject to provider coverage and access. This is published annual financial data, not real-time prices.
+No credentials are included. Configure `SEC_USER_AGENT` with the application name and a genuine operator contact to use SEC's issuer directory and company-facts APIs; no SEC API key is required. Search checks actual annual financial evidence and recommendations include only available results. Availability uses the same 11 core fields across every displayed year, strictly more than 90% completeness, at least two years, six latest primary totals, at most one latest missing field and a valid reporting date within 550 days. Limited results are explicitly labelled and disabled in the selection interface.
+
+The primary output is a standardized annual financial summary with source provenance, chart gaps for missing values, and up to five comparable periods. Public financial evidence is cached for 15 minutes. It is not a real-time stock quote or a reproduction of full issuer statements and footnotes. The direct Microsoft adapter remains a fallback; optional FMP access depends on provider coverage and entitlement. No failure silently becomes synthetic data.
+
+Optional context supplies SEC industry and filing links. Employee counts require verified dated annual disclosures; hiring, salary and review figures are not claimed without a connected source. The [local 350-issuer adapter audit](docs/coverage/2026-10-27-local.json) records the sample, failures and parser fingerprint. It does not establish production navigation, archive or save/reopen results; see [Data and methodology](docs/DATA.md#verification).
 
 AI access and its separate billing are described in [Operations](docs/OPERATIONS.md). Scheduling additionally requires an external runner, `CRON_SECRET`, and `SCHEDULER_ENABLED=true`; drafts alone do not run jobs. See [Data and methodology](docs/DATA.md) for source coverage, accounting definitions and validation.
 
@@ -49,7 +53,9 @@ AI access and its separate billing are described in [Operations](docs/OPERATIONS
 | `app/` | Full-page routes and API handlers. |
 | `components/` | Research, memo, diligence, scenario, navigation, and interaction interfaces. |
 | `lib/server.ts` | Owner-scoped persistence, quotas, authorization, and scheduling endpoint. |
-| `lib/market.ts`, `lib/issuer-financials.ts` | Financial providers and direct official-issuer statement extraction. |
+| `lib/market.ts`, `lib/sec-financials.ts` | Provider-backed discovery, financial normalization, coverage gates and filing provenance. |
+| `lib/market-storage.ts`, `lib/company-context.ts` | Shared public evidence cache, aggregate SEC admission, profile/filing enrichment and dated employee disclosures. |
+| `lib/issuer-financials.ts` | Direct Microsoft statement fallback. |
 | `lib/ai.ts`, `lib/ai-access.ts` | Server-side AI research, credential access and usage controls. |
 | `components/financial-statements.tsx`, `lib/report-export.ts` | Statement tables, complete CSV export and print support. |
 | `lib/case-studies.ts` | Published financial snapshots and source notes. |
