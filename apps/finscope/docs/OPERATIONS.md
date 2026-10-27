@@ -69,6 +69,14 @@ For loopback development only, set AUTH_ALLOW_LOCAL_HTTP=true and AUTH_EMAIL_TES
 
 This mode still exercises the normal verification, password hashing, D1 account creation, and session flow. It uses a distinct development cookie. The server's old simulated Sites identity is not an application login. Do not deploy local test flags or copy .dev.vars into a publication archive.
 
+## Guest reports
+
+Visitors may explicitly choose **Continue as guest** without entering an email. A guest session lasts 24 hours, uses a server-validated HttpOnly cookie and stores reports separately from verified accounts. Closing and reopening the same browser can retain access until expiry; clearing cookies, switching browsers or changing devices does not recover the guest session. Export reports before expiry. Signing in uses the account's own archive and does not automatically import guest work.
+
+Guests receive three manual report credits for the session. Additional rolling 24-hour limits cover shared-network report generation and repeated session creation, so clearing a cookie does not grant unlimited issuer retrieval. Failed admitted attempts still consume their reservation. These limits are independent of verified users' existing allowance.
+
+AI generation, personal keys, sponsored passes, owner controls, watchlists, saved notes and scheduled morning briefs remain verified-account functions. Guest sessions never create a verified profile or email account. The existing scheduler is preserved for normal users and remains subject to its provider/runner configuration; the guest feature does not enable it.
+
 ## Server configuration
 
 Local Worker values belong in **`apps/finscope/.dev.vars`**. This file and its variants are ignored by Git and must stay out of publication archives. Hosted values belong in the server-side secret/configuration mechanism. Do not put secrets in `NEXT_PUBLIC_*`, authored client code, browser storage, source control or logs. Authentication/encryption master secrets must never be submitted through web forms. The designated owner and personal-key forms accept provider credentials over authenticated HTTPS and persist encrypted ciphertext; see [AI access](AI-ACCESS.md). Status responses never echo plaintext secrets.
@@ -140,6 +148,8 @@ This checkout's initial local preview database has already received:
 2. `0001_mighty_post.sql` — persisted scenario plans.
 3. `0002_yellow_nightmare.sql` — verified accounts, codes, sessions, and rate-limit buckets.
 4. `0003_broken_master_mold.sql` — encrypted AI credentials, sponsored passes, and usage accounting.
+5. `0004_living_quasimodo.sql` — isolated guest sessions, reports and admission ledger; no verified-account tables are changed.
+6. `0005_clear_guest_validation_runs.sql` — removes only exact, identified initial production QA records so validation does not exhaust visitor allowances; no schema change and no other guest/account data is affected.
 
 Do not replay those files against this local database. Local initialization did **not** apply production migrations. Sites publication applies checked-in production migrations separately; preserve ordering and follow the Sites workflow.
 
@@ -150,6 +160,8 @@ node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1
 node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0001_mighty_post.sql
 node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0002_yellow_nightmare.sql
 node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0003_broken_master_mold.sql
+node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0004_living_quasimodo.sql
+node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0005_clear_guest_validation_runs.sql
 ```
 
 Use `.wrangler/state`, not `.wrangler/state/v3`; Wrangler adds the version suffix. Development and built previews share this directory. Deleting it deletes the local database and simulated user's work. `.sites-runtime/local-db.json`, if present, is an ignored initialization helper rather than production configuration.

@@ -14,20 +14,73 @@ export class IssuerDataError extends Error {
 const cache = new Map<string, { expires: number; page: Page }>();
 const pending = new Map<string, Promise<Page>>();
 
+function isTrustedMicrosoftUrl(url: URL): boolean {
+  return url.origin === "https://www.microsoft.com" && !url.username && !url.password && !url.search && !url.hash;
+}
+function isSameAnnualResource(original: string, destination: URL): boolean {
+  // Keep redirects on the original HTTPS issuer, with no credentials or custom
+  // port. A canonical path change must not select another report or website.
+  const initial = new URL(original);
+  if (!isTrustedMicrosoftUrl(destination) || !isTrustedMicrosoftUrl(initial)) return false;
+  const pathname = destination.pathname.toLowerCase().replace(/\/$/, "");
+  if (initial.href === MICROSOFT_INDEX) return pathname === "/en-us/investor/annual-reports";
+  const reportPath = /^\/investor\/reports\/ar(\d{2}|\d{4})(?:\/index\.html)?$/;
+  const requested = reportPath.exec(initial.pathname.toLowerCase().replace(/\/$/, ""));
+  const canonical = reportPath.exec(pathname);
+  const year = (value: string) => value.length === 2 ? 2000 + Number(value) : Number(value);
+  return Boolean(requested && canonical && year(requested[1]) === year(canonical[1]));
+}
+function diagnostic(url: string, details: { status?: number; errorName?: string; reason?: string }) {
+  // Provider diagnostics never include request URLs, headers, bodies or error
+  // messages, which could contain credentials or unrelated upstream content.
+  console.warn("issuer_fetch_failed", { issuer: "MSFT", stage: url === MICROSOFT_INDEX ? "index" : "report", ...details });
+}
 async function readPage(url: string, options: Options): Promise<Page> {
   const existing = !options.fetcher && cache.get(url);
   if (existing && existing.expires > Date.now()) return existing.page;
   if (!options.fetcher && pending.has(url)) return pending.get(url)!;
   const request = (async () => {
-    // Workers support manual/follow only. Reject 3xx below instead of following
-    // an unverified destination or relying on Node-only redirect:"error".
-    const response = await (options.fetcher ?? fetch)(url, { headers: { Accept: "text/html" }, signal: AbortSignal.timeout(20_000), redirect: "manual" });
-    if (!response.ok) throw new IssuerDataError("ISSUER_UNAVAILABLE", `Microsoft's published statements could not be retrieved (HTTP ${response.status}). No substitute figures were generated.`);
-    const html = await response.text();
-    if (html.length < 500 || html.length > 2_000_000) throw new IssuerDataError("ISSUER_FORMAT_CHANGED", "The issuer returned an unexpected document. Financial extraction was stopped.");
-    const page = { html, retrievedAt: new Date().toISOString() };
-    if (!options.fetcher) cache.set(url, { page, expires: Date.now() + (url === MICROSOFT_INDEX ? 900_000 : 3_600_000) });
-    return page;
+    const signal = AbortSignal.timeout(20_000);
+    let current = url;
+    for (let redirects = 0; ; redirects++) {
+      let response: Response;
+      try {
+        // Workers support manual/follow only. Follow only a bounded canonical
+        // redirect for this exact issuer resource; never unrestricted redirects.
+        response = await (options.fetcher ?? fetch)(current, { headers: { Accept: "text/html", "User-Agent": "Finscope/1.0 (+https://finscopehq.com)" }, signal, redirect: "manual" });
+      } catch (error) {
+        const name = error instanceof Error && ["TypeError", "AbortError", "TimeoutError"].includes(error.name) ? error.name : "Error";
+        diagnostic(url, { errorName: name });
+        throw new IssuerDataError("ISSUER_UNAVAILABLE", "The official issuer report could not be retrieved. No substitute figures were generated.");
+      }
+      if ([301, 302, 303, 307, 308].includes(response.status)) {
+        let destination: URL | undefined;
+        try { const location = response.headers.get("Location"); if (location) destination = new URL(location, current); } catch { /* Invalid redirects fail closed. */ }
+        const allowed = destination && isSameAnnualResource(url, destination);
+        await response.body?.cancel().catch(() => {});
+        if (!allowed || redirects >= 3) {
+          diagnostic(url, { status: response.status, reason: redirects >= 3 ? "redirect_limit" : "redirect_rejected" });
+          throw new IssuerDataError("ISSUER_UNAVAILABLE", "The issuer returned an unsupported redirect. No substitute figures were generated.");
+        }
+        current = destination!.href;
+        continue;
+      }
+      if (!response.ok) {
+        diagnostic(url, { status: response.status });
+        await response.body?.cancel().catch(() => {});
+        throw new IssuerDataError("ISSUER_UNAVAILABLE", "Microsoft's published statements could not be retrieved (HTTP " + response.status + "). No substitute figures were generated.");
+      }
+      let html: string;
+      try { html = await response.text(); } catch (error) {
+        const name = error instanceof Error && ["TypeError", "AbortError", "TimeoutError"].includes(error.name) ? error.name : "Error";
+        diagnostic(url, { errorName: name });
+        throw new IssuerDataError("ISSUER_UNAVAILABLE", "The official issuer document could not be read completely. No substitute figures were generated.");
+      }
+      if (html.length < 500 || html.length > 2_000_000) throw new IssuerDataError("ISSUER_FORMAT_CHANGED", "The issuer returned an unexpected document. Financial extraction was stopped.");
+      const page = { html, retrievedAt: new Date().toISOString() };
+      if (!options.fetcher) cache.set(url, { page, expires: Date.now() + (url === MICROSOFT_INDEX ? 900_000 : 3_600_000) });
+      return page;
+    }
   })();
   if (!options.fetcher) pending.set(url, request);
   try { return await request; } finally { if (!options.fetcher) pending.delete(url); }
@@ -50,9 +103,10 @@ function key(value: string): string {
 export function discoverMicrosoftReports(html: string): { year: number; url: string }[] {
   const links = [...html.matchAll(/href\s*=\s*["']([^"']*\/investor\/reports\/ar(\d{2}|\d{4})\/index\.html)["']/gi)];
   const reports = links.flatMap((match) => {
-    const url = new URL(match[1], MICROSOFT_INDEX);
+    let url: URL;
+    try { url = new URL(match[1], MICROSOFT_INDEX); } catch { return []; }
     const year = match[2].length === 2 ? 2000 + Number(match[2]) : Number(match[2]);
-    return url.protocol === "https:" && url.hostname === "www.microsoft.com" && year >= 2000 && year <= new Date().getUTCFullYear() ? [{ year, url: url.href }] : [];
+    return isTrustedMicrosoftUrl(url) && /^\/investor\/reports\/ar(?:\d{2}|\d{4})\/index\.html$/i.test(url.pathname) && year >= 2000 && year <= new Date().getUTCFullYear() ? [{ year, url: url.href }] : [];
   });
   return [...new Map(reports.map((report) => [report.year, report])).values()].sort((a, b) => b.year - a.year);
 }

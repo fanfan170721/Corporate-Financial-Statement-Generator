@@ -43,6 +43,8 @@ async function fixture() {
   const injected = {
     env: runtimeEnv, z,
     getUser: async () => user,
+    getGuest: async () => null,
+    GuestError: class extends Error {},
     getDemoReport: (symbol: string) => makeReport(symbol),
     generateReport: async (symbol: string) => { if (providerFails) throw new Error("secret-bearing-provider-url"); return makeReport(symbol, "live"); },
     searchCompanies: async () => [],
@@ -56,7 +58,7 @@ async function fixture() {
   injectionStore[token] = injected;
   const source = readFileSync(new URL("../lib/server.ts", import.meta.url), "utf8").replace(/^import .*;\r?\n/gm, "");
   const compiled = stripTypeScriptTypes(source, { mode: "transform" });
-  const code = `const {env,z,getUser,getDemoReport,generateReport,searchCompanies,generateMeteredAnalysis,aiStatus,sponsorReady,getCaseStudy}=globalThis[${JSON.stringify(token)}];\n${compiled}`;
+  const code = `const {env,z,getUser,getGuest,GuestError,getDemoReport,generateReport,searchCompanies,generateMeteredAnalysis,aiStatus,sponsorReady,getCaseStudy}=globalThis[${JSON.stringify(token)}];\n${compiled}`;
   const server = await import(`data:text/javascript;base64,${Buffer.from(code).toString("base64")}`) as Server;
   delete injectionStore[token];
   return {

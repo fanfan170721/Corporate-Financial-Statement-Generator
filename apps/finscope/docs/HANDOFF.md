@@ -16,7 +16,7 @@ Start with README, `docs/GETTING-STARTED.md`, `docs/OPERATIONS.md`, `docs/AI-ACC
 
 ## Boundaries to preserve
 
-1. Private data is scoped to verified application users. Never accept a user ID or role from a browser request body.
+1. Account data is scoped to verified application users. Guest reports are isolated in dedicated guest tables and authorized only by a server-validated guest session. Never accept a user ID or role from a browser request body, or treat a guest as a verified account.
 2. Email sessions are independent of the hosting gateway. Do not restore the old implicit ChatGPT identity fallback.
 3. Financial statements have dates, currencies and source URLs. Missing observations remain null. Demo fixtures cannot become live reports by changing a label.
 4. `lib/ai-access.ts` is the admission path for paid AI. Do not call `generateAIAnalysis` directly from routes and bypass its controls.
@@ -32,6 +32,7 @@ Start with README, `docs/GETTING-STARTED.md`, `docs/OPERATIONS.md`, `docs/AI-ACC
 | --- | --- |
 | Welcome and fish | `components/workspace.tsx`, `components/shell.tsx`, `components/fish-school.tsx`, `app/globals.css` |
 | Accounts | `lib/auth*.ts`, `app/api/auth/`, `components/email-auth.tsx` |
+| Guest reports | `lib/guest*.ts`, `app/api/guest/session/`, guest tables and report routing in `lib/server.ts` |
 | Reports and sources | `lib/market.ts`, issuer/statement adapters, `components/research.tsx`, `lib/types.ts` |
 | Account data | `lib/server.ts`, `db/schema.ts`, `app/api/` |
 | AI and encryption | `lib/ai-access.ts`, `lib/credential-vault.ts`, `lib/ai.ts`, `components/ai-settings.tsx` |
@@ -66,3 +67,9 @@ Owner setup stores provider configuration without sending email or validating AP
 Open `/owner/setup` through the owner's authenticated Sites session when bootstrap remains enabled. Anonymous requests receive a generic 404. The existing sponsored AI credential is already saved; do not create or replace it merely to check readiness. Use existing API credit for explicitly authorized tests; do not purchase credits or enable automatic charging without separate owner authorization. The website domains have active TLS and `mail.finscopehq.com` is verified in Resend. Complete mail-key configuration if it is still missing, then register the exact owner email, receive the real code and verify the account. Check the hosted account/report flow before inviting guests; disable bootstrap when no longer needed.
 
 Configure broader financial coverage and scheduler operation separately. Add retention and account-deletion tooling before expanding usage. These are follow-ups, not claims that unconfigured services already work.
+
+## Guest access
+
+The welcome screen offers an explicit guest choice alongside normal sign-in/registration. A guest can manually generate and export financial reports and reopen them in the same browser for 24 hours. Guest records do not become account records on sign-in; a verified account takes precedence. Keep both the UI and server distinction: guests cannot request AI, configure keys, redeem passes, use owner controls or schedule morning briefs. Normal verified-user functions, including schedule preferences and the existing job runner, remain intact.
+
+Guest creation and report generation have separate server-side admission limits. Keep isolation, expiry, cookie-churn limits and the `ai:true` rejection covered by tests. Never loosen `requireUser` to admit a guest. Do not transfer guest reports into an account by trusting a browser-supplied guest ID. Session creation and exit clean up at most 50 expired or revoked guest report payloads per request, retaining admission history and leaving account data untouched.

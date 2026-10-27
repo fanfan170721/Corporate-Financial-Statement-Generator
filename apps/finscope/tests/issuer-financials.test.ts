@@ -24,6 +24,7 @@ const index = `<html>${[2026,2025,2024,2023,2022].map(year=>`<a href="https://ww
 function fetchFixture(fail = false): typeof fetch {
   return (async (input: string | URL | Request, init?: RequestInit) => {
     assert.equal(init?.redirect,"manual","Cloudflare Workers supports manual/follow, not Node's redirect:error");
+    assert.equal(new Headers(init?.headers).get("User-Agent"), "Finscope/1.0 (+https://finscopehq.com)", "Issuer requests identify the real product without browser impersonation");
     if (fail) return new Response("Unavailable", { status: 503 });
     const url = String(input);
     if (url === "https://www.microsoft.com/en-us/investor/annual-reports") return new Response(index);
@@ -99,4 +100,89 @@ test("CSV exports all statements, provenance, source units and safe text without
   assert.match(csv,/'=HYPERLINK/);
   assert.match(csv,/"-40"/);
   assert.doesNotMatch(csv,/"'-40"/);
+});
+
+
+test("issuer discovery rejects credentials, alternate ports and malformed official-looking links", () => {
+  const unsafe = [
+    "https://user:secret@www.microsoft.com/investor/reports/ar26/index.html",
+    "https://www.microsoft.com:8443/investor/reports/ar26/index.html",
+    "http://www.microsoft.com/investor/reports/ar26/index.html",
+    "https://[invalid]/investor/reports/ar26/index.html",
+    "https://www.microsoft.com/not-investor/investor/reports/ar26/index.html",
+  ].map(url => '<a href="' + url + '">Not a source</a>').join("");
+  assert.deepEqual(issuer.discoverMicrosoftReports(unsafe), []);
+  assert.deepEqual(issuer.discoverMicrosoftReports(index + unsafe), issuer.discoverMicrosoftReports(index));
+});
+
+test("canonical Microsoft redirects preserve the requested source and fiscal year", async () => {
+  const fixture = fetchFixture();
+  const requested: string[] = [];
+  let indexSignal: AbortSignal | null | undefined;
+  const fetcher = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = String(input); requested.push(url);
+    assert.equal(init?.redirect, "manual");
+    assert.equal(new Headers(init?.headers).get("User-Agent"), "Finscope/1.0 (+https://finscopehq.com)", "Canonical redirects retain the honest product identifier");
+    if (url === "https://www.microsoft.com/en-us/investor/annual-reports") {
+      indexSignal = init?.signal;
+      return new Response(null, { status: 301, headers: { Location: "/en-us/Investor/Annual-Reports/" } });
+    }
+    if (url === "https://www.microsoft.com/en-us/Investor/Annual-Reports/") {
+      assert.equal(init?.signal, indexSignal, "Redirects share the original total fetch deadline");
+      return new Response(index);
+    }
+    if (url.endsWith("/ar26/index.html")) return new Response(null, { status: 308, headers: { Location: "./" } });
+    if (url.endsWith("/ar26/")) return new Response(annual(2026));
+    return fixture(input, init);
+  }) as typeof fetch;
+  const result = await issuer.retrieveIssuerFinancials("MSFT", { fetcher });
+  assert.equal(result.dataAsOf, "2026-06-30");
+  assert.equal(result.periods.length, 5);
+  assert.equal(requested.length, 6);
+  assert.ok(result.sources.every(source => new URL(source.url).origin === "https://www.microsoft.com"));
+});
+
+test("issuer redirect rejection never requests another host, locale, year or credential-bearing URL", async () => {
+  const redirects = [
+    "https://attacker.test/en-us/investor/annual-reports",
+    "http://www.microsoft.com/en-us/investor/annual-reports",
+    "https://user:secret@www.microsoft.com/en-us/investor/annual-reports",
+    "https://www.microsoft.com:8443/en-us/investor/annual-reports",
+    "/en-gb/investor/annual-reports",
+    "/en-us/investor/annual-reports?token=private-value",
+    "/en-us/investor/annual-reports#other-content",
+    "/login",
+  ];
+  const warnings: unknown[][] = []; const originalWarn = console.warn; console.warn = (...args: unknown[]) => { warnings.push(args); };
+  try {
+    for (const location of redirects) {
+      let calls = 0;
+      const fetcher = (async () => { calls++; return new Response(null, { status: 302, headers: { Location: location } }); }) as typeof fetch;
+      await assert.rejects(() => issuer.retrieveIssuerFinancials("MSFT", { fetcher }), { code: "ISSUER_UNAVAILABLE" });
+      assert.equal(calls, 1, "Rejected redirect destinations must never be fetched");
+    }
+    const requested: string[] = []; const fixture = fetchFixture();
+    const changedYear = (async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input); requested.push(url);
+      if (url.endsWith("/ar26/index.html")) return new Response(null, { status: 302, headers: { Location: "/investor/reports/ar27/index.html" } });
+      return fixture(input, init);
+    }) as typeof fetch;
+    await assert.rejects(() => issuer.retrieveIssuerFinancials("MSFT", { fetcher: changedYear }), { code: "ISSUER_UNAVAILABLE" });
+    assert.ok(!requested.some(url => url.includes("/ar27/")));
+    assert.doesNotMatch(JSON.stringify(warnings), /private-value|attacker|user:secret|https?:/);
+  } finally { console.warn = originalWarn; }
+});
+
+test("issuer redirect loops are bounded and transport diagnostics omit sensitive upstream text", async () => {
+  const warnings: unknown[][] = []; const originalWarn = console.warn; console.warn = (...args: unknown[]) => { warnings.push(args); };
+  try {
+    let calls = 0;
+    const loop = (async () => { calls++; return new Response(null, { status: 307, headers: { Location: "/en-us/investor/annual-reports" } }); }) as typeof fetch;
+    await assert.rejects(() => issuer.retrieveIssuerFinancials("MSFT", { fetcher: loop }), { code: "ISSUER_UNAVAILABLE" });
+    assert.equal(calls, 4, "At most three redirects may follow the initial request");
+    const networkFailure = (async () => { throw Object.assign(new Error("https://provider.test/?secret=never-log-this"), { name: "upstream-private-name" }); }) as typeof fetch;
+    await assert.rejects(() => issuer.retrieveIssuerFinancials("MSFT", { fetcher: networkFailure }), { code: "ISSUER_UNAVAILABLE" });
+    assert.deepEqual(warnings.at(-1), ["issuer_fetch_failed", { issuer: "MSFT", stage: "index", errorName: "Error" }]);
+    assert.doesNotMatch(JSON.stringify(warnings), /never-log-this|upstream-private-name|provider.test/);
+  } finally { console.warn = originalWarn; }
 });

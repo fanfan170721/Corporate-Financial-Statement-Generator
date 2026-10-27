@@ -3,7 +3,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ArrowLeft, ArrowRight, CheckCircle2, Eye, EyeOff, LoaderCircle, Mail, ShieldCheck } from 'lucide-react';
 import Link from './app-link';
-import { useApp } from './shell';
+import { useApp, GuestAccessButton } from './shell';
 
 type Mode = 'login' | 'register' | 'verify' | 'forgot' | 'reset';
 type AuthConfig = { emailDeliveryAvailable: boolean; deliveryMode?: 'local-test' | 'provider' | 'unavailable'; password: { minLength: number; maxLength: number }; codeLength: number; expiresIn: number };
@@ -135,6 +135,8 @@ export default function EmailAuth() {
       {codeField && <div className="auth-code-actions"><button type="button" disabled={busy || cooldown > 0} onClick={resend}>{cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}</button><button type="button" disabled={busy} onClick={() => changeMode(mode === 'verify' ? 'register' : 'forgot')}>Use a different email</button></div>}
       {(mode === 'forgot' || mode === 'reset') && <button className="auth-return" type="button" onClick={() => changeMode('login')} disabled={busy}><ArrowLeft size={14}/> Back to sign in</button>}
     </form>
+    {(mode==='login'||mode==='register')&&<div className="guest-signin-option"><GuestAccessButton destination={/^\/(workspace|analyze|reports|research|compare)([/?]|$)/.test(destination)?destination:'/workspace'} disabled={busy}/><small>3 report credits · 24 hours in this browser. AI and daily reports require an account.</small></div>}
+    {viewer?.guest&&<div className="guest-auth-note">Guest reports do not transfer automatically when you sign in. <Link href="/reports">Export a copy of your guest reports</Link> first if you want to keep them.</div>}
     <p className="entry-security"><ShieldCheck size={14}/>Your reports and plans are private to your account.</p>
   </div>;
 }

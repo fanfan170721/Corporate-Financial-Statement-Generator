@@ -12,6 +12,7 @@ Finscope is a financial analysis and planning tool combining company statements,
 - Income statements, balance sheets and cash-flow statements with dates, currencies, missing-value handling and original sources.
 - Six financial charts, calculated ratios, CSV export and print layouts.
 - Email/password accounts, verification codes, password reset and persistent sessions. Account-owned records live in Cloudflare D1.
+- Optional guest access for manual financial reports without email. Guest sessions last 24 hours in the current browser; AI and morning briefs require a verified account.
 - Optional AI explanations grounded in financial evidence and web sources. Users may supply an encrypted OpenAI API key or redeem an owner-issued 24-hour pass.
 - Owner controls for passes, request/token allowances and sponsored API configuration.
 - Watchlists, archives, memos, manager-review checklists, asset–liability scenarios and a reconciled liquidity model.

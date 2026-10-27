@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import { z } from "zod";
 import { getUser, type AuthUser } from "@/lib/auth";
+import { getGuest, guestUsage, guestView, claimGuestJob, releaseGuestJob, GuestError, type GuestActor } from "@/lib/guest";
 import { generateReport, getDemoReport, searchCompanies } from "@/lib/market";
 import { aiStatus, generateMeteredAnalysis, sponsorReady } from "@/lib/ai-access";
 import { getCaseStudy } from "@/lib/case-studies";
@@ -51,6 +52,7 @@ export function json(value: unknown, status = 200): Response {
 export async function apiHandler(work: () => Promise<Response>): Promise<Response> {
   try { return await work(); }
   catch (error) {
+    if (error instanceof GuestError) return json({ error: error.message, code: error.code }, error.status);
     if (error instanceof ApiError) return json({ error: error.message, code: error.code }, error.status);
     if (error instanceof z.ZodError) return json({ error: "Please check the highlighted fields and try again.", code: "INVALID_INPUT", fields: error.issues.map((issue) => issue.path.join(".")) }, 400);
     if (error instanceof Error && error.name === "MarketDataError" && "code" in error) {
@@ -123,6 +125,15 @@ export async function requireUser(): Promise<AuthUser> {
   return user;
 }
 
+type ResearchActor = { kind: "user"; userId: string } | GuestActor;
+async function requireResearchActor(): Promise<ResearchActor> {
+  const user = await getUser();
+  if (user) { await ensureProfile(user); return { kind: "user", userId: user.userId }; }
+  const guest = await getGuest();
+  if (guest) return guest;
+  throw new ApiError(401, "SIGN_IN_REQUIRED", "Sign in or start a guest session to generate and save financial reports.");
+}
+
 async function getPreferences(userId: string): Promise<Preferences> {
   const row = await database().prepare("SELECT preferences FROM profiles WHERE user_id=?").bind(userId).first<{ preferences: string }>();
   return row ? { ...DEFAULT_PREFERENCES, ...JSON.parse(row.preferences) } : { ...DEFAULT_PREFERENCES };
@@ -152,11 +163,16 @@ export async function getUsage(userId: string, now = new Date()): Promise<Viewer
 export async function getViewer(): Promise<Viewer> {
   const user = await getUser();
   const common = { capabilities: capabilities(), isAdmin: isAdmin(user) };
-  if (!user) return { ...common, user: null, preferences: { ...DEFAULT_PREFERENCES }, favorites: [], schedule: { ...DEFAULT_SCHEDULE }, usage: { used: 0, active: 0, limit: DAILY_LIMIT } };
+  if (!user) {
+    const guest = await getGuest();
+    return { ...common, capabilities: guest ? { ...common.capabilities, ai: false, scheduler: false } : common.capabilities,
+      user: null, guest: guest ? guestView(guest) : null, preferences: { ...DEFAULT_PREFERENCES }, favorites: [], schedule: { ...DEFAULT_SCHEDULE },
+      usage: guest ? await guestUsage(guest) : { used: 0, active: 0, limit: DAILY_LIMIT } };
+  }
   await ensureProfile(user);
   const [preferences, favorites, schedule, usage] = await Promise.all([getPreferences(user.userId), getFavorites(user.userId), getSchedule(user.userId), getUsage(user.userId)]);
   const access = await aiStatus(user.userId);
-  return { ...common, capabilities: { ...common.capabilities, ai: access.canUse }, user: { id: user.userId, name: user.displayName, email: user.email }, preferences, favorites, schedule, usage };
+  return { ...common, capabilities: { ...common.capabilities, ai: access.canUse }, user: { id: user.userId, name: user.displayName, email: user.email }, guest: null, preferences, favorites, schedule, usage };
 }
 
 export function handleMe(): Promise<Response> { return apiHandler(async () => json(await getViewer())); }
@@ -214,22 +230,40 @@ async function recordActivity(userId: string, action: string, symbols: string[])
   await database().prepare("INSERT INTO activity (id,user_id,action,symbols,created_at) VALUES (?,?,?,?,?)").bind(crypto.randomUUID(), userId, action, JSON.stringify(symbols), new Date().toISOString()).run();
 }
 
-async function createReports(userId: string, symbols: string[], mode: "demo" | "live", ai: boolean): Promise<Report[]> {
+function validateReportCoverage(symbols: string[], mode: "demo" | "live") {
   const available = capabilities();
   if (mode === "live" && !available.broadCoverage && symbols.some((symbol) => !available.directIssuers?.includes(symbol))) throw new ApiError(503, "DATA_COVERAGE_UNAVAILABLE", "Direct financial-statement retrieval currently supports Microsoft (MSFT). Other companies require a configured SEC or financial-data provider. No synthetic figures will be substituted.");
+}
+
+async function buildFinancialReports(symbols: string[], mode: "demo" | "live"): Promise<Report[]> {
+  const settled = await Promise.allSettled(symbols.map(async (symbol) => {
+    const base = mode === "demo" ? getDemoReport(symbol) : await generateReport(symbol, { allowDemoFallback: false, env: providerEnv() });
+    return { ...base, id: crypto.randomUUID(), generatedAt: new Date().toISOString() } as Report;
+  }));
+  const failure = settled.find((result) => result.status === "rejected");
+  if (failure?.status === "rejected") throw failure.reason;
+  return settled.map((result) => (result as PromiseFulfilledResult<Report>).value);
+}
+
+async function createGuestReports(guest: GuestActor, symbols: string[], mode: "demo" | "live"): Promise<Report[]> {
+  validateReportCoverage(symbols, mode);
+  const lease = await claimGuestJob(guest, symbols.length);
+  try {
+    const generated = await buildFinancialReports(symbols, mode);
+    for (const report of generated) delete report.ai;
+    await database().batch(generated.map(report => database().prepare("INSERT INTO guest_reports(id,session_id,symbol,mode,payload,created_at) VALUES (?,?,?,?,?,?)").bind(report.id, guest.id, report.symbol, report.mode, JSON.stringify(report), report.generatedAt)));
+    return generated;
+  } finally { await releaseGuestJob(guest, lease); }
+}
+
+async function createReports(userId: string, symbols: string[], mode: "demo" | "live", ai: boolean): Promise<Report[]> {
+  validateReportCoverage(symbols, mode);
   if (ai && !(await aiStatus(userId)).canUse) throw new ApiError(403, "AI_ACCESS_REQUIRED", "Add an API key or activate a 24-hour pass in AI access first.");
   if (ai && mode === "demo") throw new ApiError(400, "AI_REQUIRES_LIVE_DATA", "AI research requires verified public financials. Generate a live-data report first.");
   const lease = await claimJob(userId, symbols.length, symbols.length * (ai ? 2 : 1), ai ? "report_ai" : "report");
   try {
-    const settled = await Promise.allSettled(symbols.map(async (symbol) => {
-      const base = mode === "demo" ? getDemoReport(symbol) : await generateReport(symbol, { allowDemoFallback: false, env: providerEnv() });
-      const report: Report = { ...base, id: crypto.randomUUID(), generatedAt: new Date().toISOString() };
-      return report;
-    }));
     // Await every provider before releasing the shared lease, including on partial failures.
-    const failure = settled.find((result) => result.status === "rejected");
-    if (failure?.status === "rejected") throw failure.reason;
-    const generated = settled.map((result) => (result as PromiseFulfilledResult<Report>).value);
+    const generated = await buildFinancialReports(symbols, mode);
     // Save financial evidence first. An optional AI failure must never discard usable statements.
     await database().batch(generated.map((report) => database().prepare("INSERT INTO reports (id,user_id,symbol,mode,payload,created_at) VALUES (?,?,?,?,?,?)").bind(report.id, userId, report.symbol, report.mode, JSON.stringify(report), report.generatedAt)));
     if (ai) for (const report of generated) {
@@ -245,39 +279,51 @@ async function createReports(userId: string, symbols: string[], mode: "demo" | "
 export function handleReports(request: Request): Promise<Response> {
   return apiHandler(async () => {
     if (request.method !== "GET") assertSameOrigin(request);
-    const user = await requireUser();
+    const actor = await requireResearchActor();
+    const table = actor.kind === "guest" ? "guest_reports" : "reports";
+    const ownerColumn = actor.kind === "guest" ? "session_id" : "user_id";
+    const ownerId = actor.kind === "guest" ? actor.id : actor.userId;
     if (request.method === "GET") {
       const params = new URL(request.url).searchParams;
       const before = params.get("before");
       const limit = z.coerce.number().int().min(1).max(100).parse(params.get("limit") || 50);
       if (before && !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\|[a-f0-9-]{36}$/.test(before)) throw new ApiError(400, "INVALID_CURSOR", "The pagination cursor is invalid.");
       const [beforeDate, beforeId] = before?.split("|") || [];
-      const query = before ? database().prepare("SELECT id,payload,created_at FROM reports WHERE user_id=? AND (created_at<? OR (created_at=? AND id<?)) ORDER BY created_at DESC,id DESC LIMIT ?").bind(user.userId, beforeDate, beforeDate, beforeId, limit + 1)
-        : database().prepare("SELECT id,payload,created_at FROM reports WHERE user_id=? ORDER BY created_at DESC,id DESC LIMIT ?").bind(user.userId, limit + 1);
+      const query = before ? database().prepare(`SELECT id,payload,created_at FROM ${table} WHERE ${ownerColumn}=? AND (created_at<? OR (created_at=? AND id<?)) ORDER BY created_at DESC,id DESC LIMIT ?`).bind(ownerId, beforeDate, beforeDate, beforeId, limit + 1)
+        : database().prepare(`SELECT id,payload,created_at FROM ${table} WHERE ${ownerColumn}=? ORDER BY created_at DESC,id DESC LIMIT ?`).bind(ownerId, limit + 1);
       const { results } = await query.all<{ id: string; payload: string; created_at: string }>();
       const tail = results[limit - 1];
       return json({ reports: results.slice(0, limit).map((row) => JSON.parse(row.payload)), hasMore: results.length > limit, nextCursor: results.length > limit ? `${tail.created_at}|${tail.id}` : null });
     }
     const input = await body(request, z.object({ symbols: symbolsSchema.refine((items) => items.length > 0), mode: z.enum(["demo", "live"]), ai: z.boolean().optional().default(false) }).strict());
-    return json({ reports: await createReports(user.userId, input.symbols, input.mode, input.ai) }, 201);
+    if (actor.kind === "guest") {
+      if (input.ai) throw new ApiError(403, "GUEST_AI_DISABLED", "AI analysis is not available in guest mode. Sign in to use AI access.");
+      return json({ reports: await createGuestReports(actor, input.symbols, input.mode) }, 201);
+    }
+    return json({ reports: await createReports(actor.userId, input.symbols, input.mode, input.ai) }, 201);
   });
 }
 
 export function handleSaveCaseStudy(request: Request, symbol: string): Promise<Response> {
   return apiHandler(async () => {
     assertSameOrigin(request);
-    const user = await requireUser();
+    const actor = await requireResearchActor();
     const base = getCaseStudy(symbolSchema.parse(symbol));
     if (!base) throw new ApiError(404, "CASE_NOT_FOUND", "This published case study was not found.");
     // Financial evidence is copied exclusively from the server's curated case.
     // generatedAt records the save time; dataAsOf and the frozen-source note remain intact.
-    const lease = await claimJob(user.userId, 1, 1, "case_study");
+    const lease = actor.kind === "guest" ? await claimGuestJob(actor, 1) : await claimJob(actor.userId, 1, 1, "case_study");
     try {
       const report: Report = { ...structuredClone(base), id: crypto.randomUUID(), generatedAt: new Date().toISOString() };
-      await database().prepare("INSERT INTO reports (id,user_id,symbol,mode,payload,created_at) VALUES (?,?,?,?,?,?)").bind(report.id, user.userId, report.symbol, report.mode, JSON.stringify(report), report.generatedAt).run();
-      await recordActivity(user.userId, "save_case_study", [report.symbol]);
+      if (actor.kind === "guest") {
+        delete report.ai;
+        await database().prepare("INSERT INTO guest_reports(id,session_id,symbol,mode,payload,created_at) VALUES (?,?,?,?,?,?)").bind(report.id, actor.id, report.symbol, report.mode, JSON.stringify(report), report.generatedAt).run();
+      } else {
+        await database().prepare("INSERT INTO reports (id,user_id,symbol,mode,payload,created_at) VALUES (?,?,?,?,?,?)").bind(report.id, actor.userId, report.symbol, report.mode, JSON.stringify(report), report.generatedAt).run();
+        await recordActivity(actor.userId, "save_case_study", [report.symbol]);
+      }
       return json({ report }, 201);
-    } finally { await releaseJob(user.userId, lease); }
+    } finally { if (actor.kind === "guest") await releaseGuestJob(actor, lease); else await releaseJob(actor.userId, lease); }
   });
 }
 
@@ -289,7 +335,13 @@ async function ownedReport(userId: string, id: string): Promise<Report> {
 }
 
 export function handleReport(id: string): Promise<Response> {
-  return apiHandler(async () => { const user = await requireUser(); return json({ report: await ownedReport(user.userId, id) }); });
+  return apiHandler(async () => {
+    const actor = await requireResearchActor();
+    if (actor.kind === "user") return json({ report: await ownedReport(actor.userId, id) });
+    const row = id.length <= 100 ? await database().prepare("SELECT payload FROM guest_reports WHERE session_id=? AND id=?").bind(actor.id, id).first<{ payload: string }>() : null;
+    if (!row) throw new ApiError(404, "REPORT_NOT_FOUND", "This report was not found.");
+    return json({ report: JSON.parse(row.payload) });
+  });
 }
 
 export function handleReportAI(request: Request, id: string): Promise<Response> {

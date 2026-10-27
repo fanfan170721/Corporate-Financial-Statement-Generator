@@ -150,3 +150,17 @@ export const aiUsage = sqliteTable('ai_usage', {
 export const aiRedemptionAttempts = sqliteTable('ai_redemption_attempts', {
   id: text('id').primaryKey(), userId: text('user_id').notNull(), createdAt: integer('created_at').notNull(),
 }, table => [index('ai_redemption_user').on(table.userId, table.createdAt)]);
+
+// Guest research identities never become profiles or verified application accounts.
+export const guestSessions = sqliteTable('guest_sessions', {
+  id: text('id').primaryKey(), tokenHash: text('token_hash').notNull().unique(), ipHash: text('ip_hash').notNull(),
+  expiresAt: integer('expires_at').notNull(), revokedAt: integer('revoked_at'), createdAt: integer('created_at').notNull(),
+}, table => [index('guest_sessions_ip_created').on(table.ipHash, table.createdAt), index('guest_sessions_expiry').on(table.expiresAt)]);
+export const guestReports = sqliteTable('guest_reports', {
+  id: text('id').primaryKey(), sessionId: text('session_id').notNull().references(() => guestSessions.id), symbol: text('symbol').notNull(),
+  mode: text('mode').notNull(), payload: text('payload').notNull(), createdAt: text('created_at').notNull(),
+}, table => [index('guest_reports_session_created').on(table.sessionId, table.createdAt)]);
+export const guestReportJobs = sqliteTable('guest_report_jobs', {
+  id: text('id').primaryKey(), sessionId: text('session_id').notNull().references(() => guestSessions.id), ipHash: text('ip_hash').notNull(),
+  units: integer('units').notNull(), state: text('state').notNull(), expiresAt: integer('expires_at').notNull(), createdAt: integer('created_at').notNull(),
+}, table => [index('guest_jobs_session').on(table.sessionId, table.createdAt), index('guest_jobs_ip').on(table.ipHash, table.createdAt), index('guest_jobs_created').on(table.createdAt)]);
