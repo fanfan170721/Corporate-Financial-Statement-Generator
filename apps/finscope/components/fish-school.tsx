@@ -10,8 +10,8 @@ type FishSchoolProps = {
   companies?: FishCompany[];
   onCompanyClick?: (symbol: string) => void;
 };
-type Fish = { x: number; y: number; vx: number; vy: number; radius: number; phase: number; angle: number; index: number; fed: number };
-type Food = { x: number; y: number; age: number; pink: boolean; drift: number };
+type Fish = { x: number; y: number; vx: number; vy: number; radius: number; phase: number; angle: number; index: number; fed: number; foraging: number; coast: number };
+type Food = { x: number; y: number; age: number; drift: number };
 type Ripple = { x: number; y: number; age: number; eaten?: boolean };
 
 // A familiar illustrative school, not a live market-cap ranking.
@@ -85,27 +85,30 @@ export default function FishSchool({ compact = false, companies, onCompanyClick 
     let reducedMotion = motionQuery.matches || document.documentElement.dataset.reducedMotion === "true";
 
     function placeFish() {
+      const radius = compact ? 8.5 : clamp(Math.min(width, height) / 32, 10, 14);
+      const spread = Math.min(width * .27, height * .29);
       fish = identities.map((_, index) => {
-        const major = index < 7;
-        const angle = major ? index * Math.PI * 2 / 7 - .5 : index * 2.39996;
-        const orbit = major ? .27 : .29 + (index % 4) * .045;
-        const scale = compact ? .55 : clamp(width / 660, .68, 1.14);
-        const radius = (major ? 27 + (index % 3) * 2 : 14 + (index % 4) * 2) * scale;
+        // An irregular filled shoal, all facing the current; no size hierarchy or orbital lanes.
+        const angle = index * 2.39996;
+        const distance = Math.sqrt((index + .5) / identities.length);
+        const heading = .34 + Math.sin(index * 1.79) * .08;
         return {
-          x: width * (.5 + Math.cos(angle) * orbit),
-          y: height * (.51 + Math.sin(angle) * orbit * .88),
-          vx: -Math.sin(angle) * .3,
-          vy: Math.cos(angle) * .21,
+          x: width * .47 + Math.cos(angle) * distance * spread,
+          y: height * .46 + Math.sin(angle) * distance * spread * .7,
+          vx: Math.cos(heading) * .38,
+          vy: Math.sin(heading) * .38,
           radius,
           phase: index * 1.79,
-          angle: angle + Math.PI / 2,
+          angle: heading,
           index,
           fed: 0,
+          foraging: 0,
+          coast: 0,
         };
       });
       for (const item of fish) {
         const mark = marksRef.current[item.index];
-        if (mark) mark.style.setProperty("--fish-size", `${item.radius * 1.56}px`);
+        if (mark) mark.style.setProperty("--fish-size", `${item.radius * 1.45}px`);
       }
     }
 
@@ -132,19 +135,15 @@ export default function FishSchool({ compact = false, companies, onCompanyClick 
     function drawWater() {
       if (!context) return;
       context.save();
-      context.translate(width * .5, height * .51);
-      context.strokeStyle = dark ? "rgba(107, 147, 185, .09)" : "rgba(125, 168, 187, .12)";
+      context.strokeStyle = dark ? "rgba(107, 147, 185, .045)" : "rgba(125, 168, 187, .055)";
       context.lineWidth = 1;
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < 3; i++) {
+        const y = height * (.26 + i * .23);
         context.beginPath();
-        context.ellipse(0, 0, width * (.16 + i * .074), height * (.15 + i * .075), -.18, 0, Math.PI * 2);
+        context.moveTo(-20, y);
+        context.bezierCurveTo(width * .32, y - height * .11, width * .63, y + height * .1, width + 20, y - height * .025);
         context.stroke();
       }
-      context.setLineDash([2, 8]);
-      context.beginPath();
-      context.ellipse(0, 0, width * .47, height * .43, -.18, 0, Math.PI * 2);
-      context.stroke();
-      context.setLineDash([]);
       context.restore();
       // Small highlights make the water feel tactile without competing with the marks.
       for (let i = 0; i < 12; i++) {
@@ -171,14 +170,14 @@ export default function FishSchool({ compact = false, companies, onCompanyClick 
         if (!ripple.eaten) {
           context.beginPath();
           context.ellipse(ripple.x, ripple.y, 3 + progress * 40, 2 + progress * 29, 0, 0, Math.PI * 2);
-          context.strokeStyle = `rgba(225, 151, 178, ${(1 - progress) * .26})`;
+          context.strokeStyle = `rgba(111, 184, 208, ${(1 - progress) * .26})`;
           context.stroke();
         }
       }
       for (const food of foods) {
         const fade = Math.min(1, (14 - food.age) * 2);
         context.globalAlpha = Math.max(0, fade);
-        context.fillStyle = food.pink ? (dark ? "#b45070" : "#edacc4") : (dark ? "#528bc1" : "#89c8dd");
+        context.fillStyle = dark ? "#a78638" : "#e5ba4b";
         context.beginPath();
         context.arc(food.x, food.y, 2.7 + Math.sin(food.age * 3 + food.drift) * .5, 0, Math.PI * 2);
         context.fill();
@@ -186,10 +185,9 @@ export default function FishSchool({ compact = false, companies, onCompanyClick 
       }
       for (const item of fish) {
         const { x, y, radius: r, angle } = item;
-        const pink = item.index % 3 === 1;
-        const wiggle = Math.sin(elapsed * 3.6 + item.phase) * .2;
-        const bodyColor = dark ? (pink ? "rgba(123, 42, 69, .65)" : "rgba(41, 89, 138, .67)") : (pink ? "rgba(247, 207, 222, .72)" : "rgba(192, 227, 240, .78)");
-        const finColor = dark ? (pink ? "rgba(147, 60, 83, .38)" : "rgba(60, 115, 164, .38)") : (pink ? "rgba(244, 202, 219, .55)" : "rgba(184, 222, 236, .55)");
+        const wiggle = Math.sin(elapsed * 5 + item.phase) * .14;
+        const bodyColor = dark ? "rgba(53, 101, 151, .8)" : "rgba(181, 218, 234, .85)";
+        const finColor = dark ? "rgba(60, 115, 164, .46)" : "rgba(168, 209, 228, .58)";
         context.save();
         context.translate(x, y);
         context.rotate(angle);
@@ -203,7 +201,7 @@ export default function FishSchool({ compact = false, companies, onCompanyClick 
         context.fill();
         context.fillStyle = bodyColor;
         context.beginPath();
-        context.ellipse(0, 0, r * 1.05, r * .79, 0, 0, Math.PI * 2);
+        context.ellipse(0, 0, r * 1.16, r * .71, 0, 0, Math.PI * 2);
         context.fill();
         context.beginPath();
         context.moveTo(-r * .23, -r * .59);
@@ -217,7 +215,7 @@ export default function FishSchool({ compact = false, companies, onCompanyClick 
         context.lineTo(r * .6, r * .5);
         context.fill();
         if (item.fed > 0 || item.index === hovered) {
-          context.strokeStyle = pink ? "rgba(230, 147, 177, .45)" : "rgba(111, 184, 208, .5)";
+          context.strokeStyle = "rgba(111, 184, 208, .5)";
           context.lineWidth = 1;
           context.beginPath();
           context.ellipse(0, 0, r * 1.19 + item.fed * 3, r * .95 + item.fed * 3, 0, 0, Math.PI * 2);
@@ -226,17 +224,11 @@ export default function FishSchool({ compact = false, companies, onCompanyClick 
         context.restore();
         const mark = marksRef.current[item.index];
         if (mark) {
-          const size = r * 1.56;
+          const size = r * 1.45;
           const markX = x + Math.cos(angle) * r * .13;
           const markY = y + Math.sin(angle) * r * .13;
           mark.style.transform = `translate3d(${markX - size / 2}px, ${markY - size / 2}px, 0) scale(${item.index === hovered ? 1.08 : 1})`;
           mark.style.opacity = "1";
-        }
-        if (!compact && item.index < 7 && item.index !== hovered) {
-          context.font = "500 9px ui-monospace, SFMono-Regular, monospace";
-          context.textAlign = "center";
-          context.fillStyle = dark ? "rgba(159, 176, 195, .52)" : "rgba(109, 137, 150, .55)";
-          context.fillText(identities[item.index].symbol, x, y + r * 1.35 + 7);
         }
       }
     }
@@ -247,74 +239,127 @@ export default function FishSchool({ compact = false, companies, onCompanyClick 
       for (let i = foods.length - 1; i >= 0; i--) {
         foods[i].age += dt;
         foods[i].x += Math.sin(elapsed + foods[i].drift) * .055 * step;
-        foods[i].y += .025 * step;
+        foods[i].y = Math.min(height - (compact ? 55 : 72), foods[i].y + .025 * step);
         if (foods[i].age > 14) foods.splice(i, 1);
       }
       for (let i = ripples.length - 1; i >= 0; i--) {
         ripples[i].age += dt;
         if (ripples[i].age > (ripples[i].eaten ? .8 : 1.7)) ripples.splice(i, 1);
       }
+      // Read one frame consistently so earlier fish do not become accidental leaders.
+      const previousFish = fish.map(item => ({ ...item }));
+      const centerX = previousFish.reduce((sum, item) => sum + item.x, 0) / fish.length;
+      const centerY = previousFish.reduce((sum, item) => sum + item.y, 0) / fish.length;
+      const route = elapsed * .105;
+      const anchorX = width * (.5 + Math.sin(route) * .19);
+      const anchorY = height * (.46 + Math.sin(route * 1.65) * .12);
+      // A shared, slowly changing current carries the shoal through broad soft turns.
+      const flowX = width * .19 * .105 * Math.cos(route) / 60 + (anchorX - centerX) * .008;
+      const flowY = height * .12 * .105 * 1.65 * Math.cos(route * 1.65) / 60 + (anchorY - centerY) * .008;
+      const nearestFoodDistance = (item: Fish) => foods.reduce((distance, food) => Math.min(distance, Math.hypot(food.x - item.x, food.y - item.y)), Infinity);
+      const feedingFish = new Set(foods.length ? [...previousFish].sort((a, b) => nearestFoodDistance(a) - nearestFoodDistance(b)).slice(0, 6).map(item => item.index) : []);
+
       for (const item of fish) {
-        let ax = Math.cos(elapsed * .49 + item.phase) * .0025;
-        let ay = Math.sin(elapsed * .38 + item.phase) * .0025;
+        const seeking = feedingFish.has(item.index) && foods.length > 0;
+        const previousSpeed = Math.hypot(item.vx, item.vy);
+        item.coast = seeking ? 2.5 : Math.max(0, item.coast - dt);
+        // Preserve momentum after the last bite, then blend back into the current.
+        // The slower release takes several seconds; it never switches to a hard cruise cap.
+        item.foraging += ((seeking ? 1 : 0) - item.foraging) * (1 - Math.exp(-dt * (seeking ? 5 : .65)));
+        const returnWeight = .04 + .96 * (1 - item.foraging) ** 2;
+        let ax = (flowX - item.vx) * .028 * returnWeight;
+        let ay = (flowY - item.vy) * .028 * returnWeight;
+        ax += (centerX - item.x) * .00009 * returnWeight;
+        ay += (centerY - item.y) * .00009 * returnWeight;
         let neighbors = 0;
         let alignmentX = 0;
         let alignmentY = 0;
-        for (const other of fish) {
-          if (other === item) continue;
+        let cohesionX = 0;
+        let cohesionY = 0;
+        const neighborhood = item.radius * 8;
+        for (const other of previousFish) {
+          if (other.index === item.index) continue;
           const dx = item.x - other.x;
           const dy = item.y - other.y;
           const distance = Math.hypot(dx, dy) || 1;
-          const space = (item.radius + other.radius) * 1.48;
+          const space = item.radius * 2.7;
           if (distance < space) {
-            const force = (space - distance) / space * .025;
+            const force = (1 - distance / space) * .075;
             ax += dx / distance * force;
             ay += dy / distance * force;
           }
-          if (distance < 100) { neighbors++; alignmentX += other.vx; alignmentY += other.vy; }
-        }
-        if (neighbors) {
-          ax += (alignmentX / neighbors - item.vx) * .0018;
-          ay += (alignmentY / neighbors - item.vy) * .0018;
-        }
-        let nearest: Food | undefined;
-        let nearestDistance = Infinity;
-        for (const food of foods) {
-          const distance = Math.hypot(food.x - item.x, food.y - item.y);
-          if (distance < nearestDistance) { nearestDistance = distance; nearest = food; }
-        }
-        const seeking = !!nearest && nearestDistance < Math.max(170, width * .43);
-        if (seeking && nearest) {
-          if (nearestDistance < item.radius * .62 + 4) {
-            foods.splice(foods.indexOf(nearest), 1);
-            item.fed = 1;
-            ripples.push({ x: nearest.x, y: nearest.y, age: 0, eaten: true });
-          } else {
-            ax += (nearest.x - item.x) / nearestDistance * .022;
-            ay += (nearest.y - item.y) / nearestDistance * .022;
+          if (distance < neighborhood) {
+            neighbors++;
+            alignmentX += other.vx;
+            alignmentY += other.vy;
+            cohesionX += other.x;
+            cohesionY += other.y;
           }
         }
-        const marginX = item.radius * 2 + 14;
-        const minY = compact ? 44 + item.radius : 65 + item.radius;
-        const maxY = height - (compact ? 45 : 69) - item.radius;
-        if (item.x < marginX) ax += (marginX - item.x) * .0013;
-        if (item.x > width - marginX) ax -= (item.x - width + marginX) * .0013;
-        if (item.y < minY) ay += (minY - item.y) * .0013;
-        if (item.y > maxY) ay -= (item.y - maxY) * .0013;
-        // Gentle orbit returns the school to its flow when feeding is over.
-        const centerX = (item.x - width / 2) / Math.max(1, width);
-        const centerY = (item.y - height * .51) / Math.max(1, height);
-        if (!seeking) { ax += -centerY * .003; ay += centerX * .003; }
+        if (neighbors) {
+          ax += ((alignmentX / neighbors - item.vx) * .045 + (cohesionX / neighbors - item.x) * .00014) * returnWeight;
+          ay += ((alignmentY / neighbors - item.vy) * .045 + (cohesionY / neighbors - item.y) * .00014) * returnWeight;
+        }
+        ax += Math.cos(elapsed * .8 + item.phase) * .00035;
+        ay += Math.sin(elapsed * .7 + item.phase) * .00035;
+        if (seeking) {
+          let nearest: Food | undefined;
+          let nearestDistance = Infinity;
+          for (const food of foods) {
+            const distance = Math.hypot(food.x - item.x, food.y - item.y);
+            if (distance < nearestDistance) { nearestDistance = distance; nearest = food; }
+          }
+          if (nearest) {
+            if (nearestDistance < item.radius * .7 + 4) {
+              foods.splice(foods.indexOf(nearest), 1);
+              item.fed = 1;
+              ripples.push({ x: nearest.x, y: nearest.y, age: 0, eaten: true });
+            } else {
+              const foodSpeed = compact ? .85 : 1.2;
+              ax += ((nearest.x - item.x) / nearestDistance * foodSpeed - item.vx) * .065;
+              ay += ((nearest.y - item.y) / nearestDistance * foodSpeed - item.vy) * .065;
+            }
+          }
+        }
+        const marginX = item.radius * 3.5 + 12;
+        const minY = (compact ? 32 : 43) + item.radius;
+        const maxY = height - (compact ? 47 : 61) - item.radius;
+        const nearBoundary = item.x < marginX || item.x > width - marginX || item.y < minY || item.y > maxY;
+        if (item.x < marginX) ax += (marginX - item.x) * .002;
+        if (item.x > width - marginX) ax -= (item.x - width + marginX) * .002;
+        if (item.y < minY) ay += (minY - item.y) * .002;
+        if (item.y > maxY) ay -= (item.y - maxY) * .002;
+        const force = Math.hypot(ax, ay);
+        const maxForce = seeking ? .045 : .018;
+        if (force > maxForce) { ax = ax / force * maxForce; ay = ay / force * maxForce; }
         item.vx += ax * step;
         item.vy += ay * step;
-        const speed = Math.hypot(item.vx, item.vy) || .01;
-        const maxSpeed = seeking ? (compact ? .85 : 1.45) : (compact ? .3 : .55);
-        if (speed > maxSpeed) { item.vx = item.vx / speed * maxSpeed; item.vy = item.vy / speed * maxSpeed; }
-        item.x = clamp(item.x + item.vx * step, item.radius, width - item.radius);
-        item.y = clamp(item.y + item.vy * step, item.radius + 32, height - item.radius - 30);
-        const targetAngle = Math.atan2(item.vy, item.vx);
-        const difference = Math.atan2(Math.sin(targetAngle - item.angle), Math.cos(targetAngle - item.angle));
-        item.angle += difference * Math.min(1, .045 * step);
+        let speed = Math.hypot(item.vx, item.vy);
+        const cruiseSpeed = compact ? .45 : .7;
+        const feedingSpeed = compact ? .85 : 1.2;
+        const coasting = !seeking && item.coast > 0;
+        // Bound total braking from all forces, not just the speed ceiling. Preserve
+        // the new direction so lateral turning continues while forward speed eases.
+        // Soft wall avoidance may brake more firmly when needed to stay in the pond.
+        const minimumSpeed = coasting && !nearBoundary ? Math.max(0, previousSpeed - .24 * dt) : 0;
+        if (speed < minimumSpeed) {
+          const direction = speed > .00001 ? { vx: item.vx / speed, vy: item.vy / speed } : { vx: previousFish[item.index].vx / (previousSpeed || 1), vy: previousFish[item.index].vy / (previousSpeed || 1) };
+          item.vx = direction.vx * minimumSpeed;
+          item.vy = direction.vy * minimumSpeed;
+          speed = minimumSpeed;
+        }
+        const maxSpeed = seeking ? feedingSpeed : coasting ? Math.min(feedingSpeed, Math.max(cruiseSpeed, previousSpeed - .24 * dt)) : cruiseSpeed;
+        if (speed > maxSpeed) {
+          item.vx = item.vx / speed * maxSpeed;
+          item.vy = item.vy / speed * maxSpeed;
+        }
+        item.x = clamp(item.x + item.vx * step, item.radius + 8, width - item.radius - 8);
+        item.y = clamp(item.y + item.vy * step, item.radius + 24, height - item.radius - 35);
+        if (speed > .015) {
+          const targetAngle = Math.atan2(item.vy, item.vx);
+          const difference = Math.atan2(Math.sin(targetAngle - item.angle), Math.cos(targetAngle - item.angle));
+          item.angle += clamp(difference * .1, -.065, .065) * step;
+        }
         item.fed = Math.max(0, item.fed - dt);
       }
     }
@@ -341,7 +386,7 @@ export default function FishSchool({ compact = false, companies, onCompanyClick 
       for (let i = 0; i < 8; i++) {
         const angle = i * 2.39996;
         const distance = 6 + (i % 4) * 5;
-        foods.push({ x: clamp(x + Math.cos(angle) * distance, 18, width - 18), y: clamp(y + Math.sin(angle) * distance, 35, height - 35), age: 0, pink: i % 2 === 0, drift: i * .8 });
+        foods.push({ x: clamp(x + Math.cos(angle) * distance, 18, width - 18), y: clamp(y + Math.sin(angle) * distance, compact ? 42 : 54, height - (compact ? 55 : 72)), age: 0, drift: i * .8 });
       }
       ripples.push({ x, y, age: 0 });
       if (ripples.length > 15) ripples.splice(0, ripples.length - 15);
@@ -432,7 +477,7 @@ export default function FishSchool({ compact = false, companies, onCompanyClick 
       <canvas ref={canvasRef} className="fish-school__canvas" role="button" tabIndex={0} aria-label="Interactive company fish. Click the water or press Space to feed. This illustrative school is not a live market-cap ranking." />
       <div className="fish-school__marks" aria-hidden="true">
         {identities.map((company, index) => <span key={company.symbol} ref={(element) => { marksRef.current[index] = element; }} className="fish-school__mark" style={{ "--fish-size": "40px" } as CSSProperties}>
-          <CompanyMark symbol={company.symbol} mark={company.mark} color={company.color} size={compact ? (index < 7 ? 17 : 12) : (index < 7 ? 26 : 18)} />
+          <CompanyMark symbol={company.symbol} mark={company.mark} color={company.color} size={18} />
         </span>)}
       </div>
       {tooltip && <div className="fish-school__tooltip" style={{ left: tooltip.x, top: tooltip.y }}>{tooltip.company.nameEn || tooltip.company.name}<strong>{tooltip.company.symbol}</strong></div>}
