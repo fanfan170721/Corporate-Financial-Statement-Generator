@@ -2,7 +2,7 @@
 
 **Understand the numbers. Plan what comes next.**
 
-[Website](https://finscope-market-observatory.upbeatclove8.chatgpt.site) · [Owner setup](apps/finscope/docs/GETTING-STARTED.md) · [Developer handoff](apps/finscope/docs/HANDOFF.md) · [Operations](apps/finscope/docs/OPERATIONS.md) · [AI access](apps/finscope/docs/AI-ACCESS.md)
+[Website](https://finscopehq.com) · [Owner setup](apps/finscope/docs/GETTING-STARTED.md) · [Developer handoff](apps/finscope/docs/HANDOFF.md) · [Operations](apps/finscope/docs/OPERATIONS.md) · [AI access](apps/finscope/docs/AI-ACCESS.md)
 
 Finscope is a financial analysis and planning tool combining company statements, comparable charts, source-backed explanations, watchlists, portfolio scenarios and private notes. The English interface has light and dark themes, full-page navigation and an interactive fish-school welcome screen.
 
@@ -19,7 +19,7 @@ Finscope is a financial analysis and planning tool combining company statements,
 
 ## Service readiness
 
-The website retains its owner-private hosting audience. Application email accounts are independent of the hosting access policy.
+The branded website is `finscopehq.com`, with `www.finscopehq.com` also connected. Hosting access and application email accounts are separate: opening the website to visitors does not grant access to another account's saved data or paid AI.
 
 The restricted `/owner/setup` page lets the configured owner connect provider keys before email registration is available, using trusted Sites gateway identity. It stores encrypted settings without testing providers, creating an application account or bypassing email verification. Its trust flags must never be enabled on a directly reachable public Worker origin. Follow [Owner setup](apps/finscope/docs/GETTING-STARTED.md) for the required gate, mail setup and hosted verification.
 
@@ -70,4 +70,4 @@ apps/finscope/
 
 The repository is the source of truth. Claude, Codex or a developer can clone it, run checks, change the source and submit ordinary Git commits. Generated runtime/publication files are ignored and not required to understand the application. Preserve the hosted project ID when updating this deployment.
 
-Secrets belong in server environment settings or the encrypted credential vault, never source, browser storage or screenshots. Back up D1 and preserve encryption keys before moving hosts. Purchase a domain you own when ready to configure branded email and a custom website address.
+Secrets belong in server environment settings or the encrypted credential vault, never source, browser storage or screenshots. Back up D1 and preserve encryption keys before moving hosts. The owner has registered `finscopehq.com`; website TLS and the `mail.finscopehq.com` sending domain are verified. See Operations for the distinction between provider configuration and tested email delivery.

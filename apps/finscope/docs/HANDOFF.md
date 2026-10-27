@@ -10,6 +10,7 @@ This document is for any developer or coding assistant maintaining Finscope. No 
 - UI: React 19, TypeScript, Vinext, Recharts, Lucide and CSS.
 - Hosted identity: read `.openai/hosting.json`; do not create a replacement project when updating this one.
 - GitHub CI: `.github/workflows/check.yml`.
+- Branded origins: `https://finscopehq.com` and `https://www.finscopehq.com`. Prefer the root domain in visitor links. Their host-only session cookies are separate; the same verified account still reads the same D1 records.
 
 Start with README, `docs/GETTING-STARTED.md`, `docs/OPERATIONS.md`, `docs/AI-ACCESS.md` and `docs/DATA.md`. Install with `npm ci`, initialize the local database, then run `npm run dev`. Run typecheck, tests and build before release.
 
@@ -62,6 +63,6 @@ Owner setup stores provider configuration without sending email or validating AP
 
 ## Next operational work
 
-Open `/owner/setup` through the owner's private Sites session. If sponsored AI is not already configured, save the owner's existing API key there. Use existing API credit for explicitly authorized tests; do not purchase credits or enable automatic charging without separate owner authorization. Connect a Resend account, verified sending domain, provider key and sender. Then register the exact owner email, receive the real code and verify the account. Check the hosted account/report flow before inviting guests; disable bootstrap when no longer needed.
+Open `/owner/setup` through the owner's authenticated Sites session when bootstrap remains enabled. Anonymous requests receive a generic 404. The existing sponsored AI credential is already saved; do not create or replace it merely to check readiness. Use existing API credit for explicitly authorized tests; do not purchase credits or enable automatic charging without separate owner authorization. The website domains have active TLS and `mail.finscopehq.com` is verified in Resend. Complete mail-key configuration if it is still missing, then register the exact owner email, receive the real code and verify the account. Check the hosted account/report flow before inviting guests; disable bootstrap when no longer needed.
 
 Configure broader financial coverage and scheduler operation separately. Add retention and account-deletion tooling before expanding usage. These are follow-ups, not claims that unconfigured services already work.

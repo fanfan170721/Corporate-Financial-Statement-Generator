@@ -76,7 +76,7 @@ export function createOwnerSetup(options: { env: OwnerSetupEnvironment; gatewayI
   }
   async function handler(request: Request): Promise<Response> {
     try {
-      if (!await getAccess()) throw new OwnerSetupError(403, "OWNER_SETUP_ACCESS_REQUIRED", "Owner setup is restricted to the configured site owner while setup access is enabled.");
+      if (!await getAccess()) throw new OwnerSetupError(404, "NOT_FOUND", "Not found.");
       if (request.method === "GET") return ownerResponse(await status());
       if (request.method !== "PUT") throw new OwnerSetupError(405, "METHOD_NOT_ALLOWED", "This setup action is not supported.");
       const url = new URL(request.url);

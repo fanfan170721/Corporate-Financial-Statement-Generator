@@ -1,6 +1,6 @@
 # Owner setup and guest access
 
-Use `/owner/setup` to connect email and sponsored AI before your application email account exists. This page is restricted to the configured owner through the trusted private Sites gateway. It does not skip registration or email verification. Keep the site private until the hosted checks below succeed.
+Visitors use [Finscope](https://finscopehq.com) and its own email/password login. Use `/owner/setup` only to configure providers before your application email account exists. It is restricted to the configured owner through trusted Sites identity; anonymous visitors receive a normal 404. It does not skip registration or email verification.
 
 ## 1. Open the private owner setup page
 
@@ -12,9 +12,9 @@ If sponsored AI is not already configured, paste your existing OpenAI API key in
 
 ## 2. Connect email, then verify your application account
 
-Create a free Resend account. Buy a domain you control if you do not already have one, then [verify its sending domain](https://resend.com/docs/dashboard/domains/introduction) with the DNS records shown in Resend. A subdomain such as `accounts.your-domain.example` keeps transactional email separate.
+The domain `finscopehq.com` has been registered, both website hostnames have active TLS, and `mail.finscopehq.com` is verified in Resend. Preserve the [sending-domain DNS records](https://resend.com/docs/dashboard/domains/introduction) already configured rather than repeating domain or key creation.
 
-Create a Resend sending API key. In `/owner/setup`, enter that key and a sender on your verified domain, for example `Finscope <hello@accounts.your-domain.example>`, then save. This encrypts the configuration; it does not send a test email, verify the domain, validate the provider key, or create an application account. A complete server-environment pair of `RESEND_API_KEY` and `AUTH_EMAIL_FROM` takes precedence over saved mail settings, so remove or update an obsolete complete pair through deployment settings if necessary.
+Check whether email configuration is already saved in `/owner/setup`. Only if it is missing, use a Resend key limited to sending from `mail.finscopehq.com`, with sender `Finscope <accounts@mail.finscopehq.com>`. This encrypts the configuration; it does not send a test email, validate provider access, or create an application account. A complete server-environment pair of `RESEND_API_KEY` and `AUTH_EMAIL_FROM` takes precedence over saved mail settings, so remove or update an obsolete complete pair through deployment settings if necessary.
 
 Register in Finscope using the exact `ADMIN_EMAIL` address. Receive the real email and enter its code. Then test sign-out/sign-in and password reset. `/admin` becomes available to the verified owner account. If preserving older Sites-owned research, follow the proof-based linking instructions in [Operations](OPERATIONS.md) before registration. There is no production verification bypass.
 
@@ -30,7 +30,7 @@ OpenAI API billing is [separate from ChatGPT subscriptions](https://help.openai.
 
 ## 4. Give a guest access
 
-Connect and verify email first. Decide the hosting audience explicitly: the current deployment is owner-private, so a link alone does not admit visitors. Use supported external invitations or approve public hosting with application login; this is separate from an AI pass.
+Verify real email delivery and the hosted account flow first. The intended visitor entry is the public website with application email login; this is separate from an AI pass. Check the actual hosting access policy before sharing the link, and do not restore an outer platform login unintentionally.
 
 In `/admin`, create a labelled pass with **one claim** for an individual guest. Copy the code immediately; it is shown once. The default allowance is 100,000 metered tokens and 5 AI requests for 24 hours starting when redeemed. Limits can be changed in the owner console. The token reservation caveat and provider costs are explained in `AI-ACCESS.md`.
 

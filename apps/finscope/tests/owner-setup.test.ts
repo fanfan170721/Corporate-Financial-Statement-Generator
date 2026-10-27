@@ -48,15 +48,17 @@ function fixture() {
   return { env, sql, owner, call, request, setIdentity: (value: typeof identity) => { identity = value; }, close: () => sql.close() };
 }
 
-test("owner setup requires both explicit flags and an exact trusted gateway owner identity", async () => {
+test("owner setup hides its existence unless both flags and the exact trusted owner identity match", async () => {
   const f = fixture();
   try {
     const rejected = async () => {
       assert.equal(await f.owner.getAccess(), false);
       for (const method of ["GET", "PUT"]) {
-        const result = await f.call(method, method === "PUT" ? { service: "ai", apiKey: aiKey } : undefined, { headers: { "x-chatgpt-user-id": "gateway-owner", "x-chatgpt-user-email": "owner@example.test" } });
-        assert.equal(result.status, 403);
+        const result = await f.call(method, method === "PUT" ? { service: "ai", apiKey: aiKey } : undefined, { headers: { "oai-authenticated-user-id": "gateway-owner", "oai-authenticated-user-email": "owner@example.test" } });
+        assert.equal(result.status, 404);
+        assert.equal(result.headers.get("Cache-Control"), "private, no-store");
         const text = await result.text();
+        assert.deepEqual(JSON.parse(text), { error: "Not found.", code: "NOT_FOUND" });
         assert.ok(!text.includes("owner@example.test"));
         assert.ok(!text.includes(aiKey));
       }
@@ -67,6 +69,10 @@ test("owner setup requires both explicit flags and an exact trusted gateway owne
     f.setIdentity({ userId: "", email: "owner@example.test" }); await rejected();
     f.setIdentity({ userId: "other", email: "owner@example.test.evil" }); await rejected();
     f.setIdentity({ userId: "other", email: "someone@example.test" }); await rejected();
+    const database = f.env.DB;
+    delete f.env.DB;
+    await rejected(); // Denial must not reveal whether the credential store is available.
+    f.env.DB = database;
     f.setIdentity({ userId: "gateway-owner", email: " OWNER@example.test " });
     assert.equal(await f.owner.getAccess(), true);
     const result = await f.call();

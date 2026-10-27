@@ -14,6 +14,16 @@ A real local AI integration test completed on **26 October 2026 (America/New_Yor
 
 Application accounts now use **email and password with email verification**. Registration creates an account only after the six-digit code is verified. An ordinary application session never falls back to ChatGPT identity headers. Existing private Sites hosting can still require an outer platform sign-in before a visitor reaches the app; changing that hosting access policy is separate from application authentication.
 
+### Branded domains
+
+Use `https://finscopehq.com` in visitor-facing links. `https://www.finscopehq.com` serves the same application and D1 records. Both custom domains and TLS certificates are active. Cookies are host-only, so signing in on one hostname does not sign in on the other; prefer the root hostname consistently.
+
+Cloudflare DNS is DNS-only for these records: root A records `162.159.143.30` and `172.66.3.26`, and `www` CNAME to the Sites-provided custom-domain target. Preserve the two ownership-verification TXT records per hostname. Use the native hosting domain tool to read current targets before changing records; do not invent an origin or point an enabled bootstrap directly at a standalone Worker.
+
+Resend uses TXT `resend._domainkey.mail` plus CNAME `rsend.mail` to `rsend.forge.rmta.net` and `send.mail` to `send.forge.rmta.net`. Preserve the exact public DKIM value in DNS. Sending is enabled; receiving is disabled. This does not create an inbound mailbox for the sender address.
+
+The user requested a normal branded visitor entry with the application's own login. Public hosting must still leave report archives, account settings, AI credentials, owner controls and paid requests behind their application authorization gates. The original platform hostname remains an operator fallback, not the link to distribute to visitors.
+
 Passwords require 12–128 characters. The server uses WebCrypto PBKDF2-SHA256 with 100,000 iterations, a random salt, and an HMAC pepper held in AUTH_SECRET. This work factor respects the current Workers default cap; [Cloudflare's proposed cap increase](https://github.com/cloudflare/workerd/pull/7550) remains open. The versioned hash format permits a future KDF upgrade. This is a platform constraint, not a claim to meet the higher PBKDF2 work factor recommended for unconstrained servers.
 
 Verification/reset codes expire after ten minutes and allow at most five attempts. Codes are purpose-bound HMACs in the database; plaintext codes are sent only to the mail provider. Resends have a 60-second cooldown. Server limits also constrain attempts by hashed email/IP buckets and global mail volume. Registration and recovery responses do not disclose whether the address already has an account.
@@ -24,9 +34,9 @@ The application stores research against its verified account ID in D1, so the sa
 
 ### Connecting actual email delivery
 
-No domain or mail provider has been connected for this project yet. The full registration, verification, reset, and login implementation is present, but production registration/recovery cannot deliver mail until setup is complete. Missing configuration returns an explicit unavailable response; provider rejection never reports a successful send.
+`mail.finscopehq.com` is verified in Resend, with sending enabled and receiving disabled. Its domain-scoped sending key belongs only in the encrypted owner configuration, with sender `Finscope <accounts@mail.finscopehq.com>`. Domain verification and saved configuration do not establish inbox delivery: the owner must complete a real registration and verification. Missing configuration returns an explicit unavailable response; provider rejection never reports a successful send.
 
-1. Obtain a domain and connect a verified sending domain to Resend, including the DNS records it requests. Use a sender address on that domain.
+1. Preserve the verified sending domain and the DNS records requested by Resend. Use a sender address on that domain.
 2. Save the Resend key and sender in the restricted `/owner/setup` form described below, or configure the complete server-only pair `RESEND_API_KEY` and `AUTH_EMAIL_FROM` (for example, `Finscope <accounts@your-domain.example>`). A complete environment pair takes precedence; otherwise the app uses encrypted saved mail settings. A partial pair is not combined with part of a saved configuration.
 3. Keep the existing `AUTH_SECRET` stable and local test flags disabled in the hosted environment. Configure `ADMIN_EMAIL` to the intended owner's address, then register and complete real email verification for that account.
 4. Send an end-to-end registration email to an address you control. Test verification, logout/login, and password reset. Check spam placement and sender-domain status before inviting visitors.
