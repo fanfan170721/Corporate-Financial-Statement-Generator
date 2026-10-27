@@ -2,6 +2,14 @@
 
 This document records Finscope's architecture, current service readiness and development priorities.
 
+## Welcome pond
+
+`lib/fish-companies.ts` holds 100 illustrative company identities and a partial Fisher–Yates sampler. The welcome and login server pages select 20 distinct identities per document request and pass that exact sample through client props. Language, theme and feeding interactions must not resample the school or introduce hydration differences. This decorative catalogue does not determine report coverage or represent a current market-cap ranking.
+
+Feeding and hover ripples remain at their original water coordinates, expand outwards and fade using a shared water-blue palette for every fish. They do not follow, shrink around or take the colour of a fish. Particle counts remain bounded; reduced-motion mode disables animated ripples and retains static feeding feedback.
+
+This update was published as version 16 on 27 October 2026. TypeScript, all 122 existing tests and the production build passed. Browser checks confirmed 20 unique identities, a new school on reload, stable identities through feeding/theme/language changes, light/dark rendering, no hydration errors and a corrected 320px French layout. The 100-entry sampler was separately exercised across 1,000 seeded draws without duplicates or catalogue mutation. No financial report or paid AI request was needed.
+
 ## Bilingual interface — 27 October 2026
 
 The EN/FR switch selects `en-CA` or `fr-CA` throughout the interface, including authentication, reports, exports, planning and account settings. `components/i18n.tsx` provides context and the selector; `lib/i18n.ts` uses curated catalogues in `lib/locales/`. New visible strings require a French entry and preservation of named interpolation values. Company identities, original source quotations, saved user notes and previously generated AI content remain in their original language.

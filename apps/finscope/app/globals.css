@@ -71,7 +71,7 @@
 /* The entry experience keeps the research tools behind one clear action. */
 .entry-page{min-height:calc(100svh - 78px);display:flex;align-items:center;padding:45px 0 65px}
 .entry-layout{display:grid;grid-template-columns:minmax(310px,.8fr) minmax(0,1.45fr);align-items:center;gap:60px;width:100%}
-.entry-copy{padding:0 0 6px 4px}
+.entry-copy{padding:0 0 6px 4px;min-width:0}
 .entry-copy>.eyebrow{font-size:10px;letter-spacing:1.8px;margin-bottom:21px}
 .entry-copy h1{font-size:clamp(32px,3.3vw,44px);line-height:1.25;letter-spacing:-1.65px;font-weight:600;margin-bottom:22px}
 .entry-copy h1>span{position:relative;white-space:nowrap}
@@ -165,3 +165,5 @@
 @media print{html,body{background:#fff!important;color:#202329!important}.site-header,.site-footer,.modal-backdrop,.header-actions,.filter-tabs,.button,.icon-button,.research-principle,.mode-control{display:none!important}.page{width:100%;max-width:none;min-height:0;padding:0}.page-transition{animation:none;min-height:0}.panel,.chart-card,.metric-card,.insight-card{background:#fff!important;border-color:#ddd!important;box-shadow:none!important}.chart-grid{grid-template-columns:1fr 1fr;gap:12px}.metric-grid{grid-template-columns:repeat(3,1fr)}.chart-card,.insight-card,.metric-card{break-inside:avoid}.chart-body{height:210px}.section-heading h1{font-size:25px}.notice{background:#f7f8fa!important;color:#4c5864!important}.data-table th{background:#f4f5f6!important}.data-table{font-size:11px}.data-table th,.data-table td{padding:8px}a[href^="http"]{overflow-wrap:anywhere}.fish-school,.hero-graphic{display:none!important}}
 
 
+
+@media(max-width:380px){.entry-copy h1{font-size:clamp(26px,8.4vw,32px)}.entry-copy h1>span{white-space:normal}}

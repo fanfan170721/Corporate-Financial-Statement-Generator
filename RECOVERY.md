@@ -34,6 +34,14 @@ The bilingual interface release is Sites version **14**. It adds no database mig
 - Deployment archive: `outputs/finscope-bilingual-v14-final.tar.gz` (ignored by Git).
 - Preserve both prior rollback tags: `stable-2026-10-27` and `release-2026-10-27-coverage`. Language preferences use existing JSON storage and remain backward-compatible.
 
+The welcome-pond update is Sites version **16**, published on 27 October 2026. It samples 20 distinct companies from 100 presets, softens water ripples and corrects the French welcome heading at 320px. It makes no database, credential or financial-adapter changes. Version 15 was an unpublished validation candidate.
+
+- Saved version: `appgprj_6adfe53d05bc8191983062a369584a6a~appgver_924c44ec7c888191a0aaf9bb834468cd`
+- Published source: `2d9422bd877b9811e0112527c70c3e676294c502`
+- Successful deployment: `appgdep_6ae0c07ff2c48191836af33a07fb4d38`
+- Deployment archive: `outputs/finscope-fish-v16.tar.gz` (ignored by Git).
+- The preceding public release remains preserved at `release-2026-10-27-bilingual`.
+
 Fetch the tag, then open it in a separate directory rather than resetting the current checkout:
 
 ```sh

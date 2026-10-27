@@ -2,52 +2,18 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useI18n } from "@/components/i18n";
+import { FISH_SCHOOL_SIZE, type FishCompany } from "@/lib/fish-companies";
 import CompanyMark from "./company-mark";
 import "./fish-school.css";
 
-type FishCompany = { symbol: string; name: string; nameEn?: string; color?: string; mark?: string };
 type FishSchoolProps = {
   compact?: boolean;
-  companies?: FishCompany[];
+  companies: readonly FishCompany[];
   onCompanyClick?: (symbol: string) => void;
 };
-type Fish = { x: number; y: number; vx: number; vy: number; radius: number; phase: number; angle: number; index: number; fed: number; foraging: number; coast: number };
+type Fish = { x: number; y: number; vx: number; vy: number; radius: number; phase: number; angle: number; index: number; foraging: number; coast: number };
 type Food = { x: number; y: number; age: number; drift: number };
-type Ripple = { x: number; y: number; age: number; eaten?: boolean };
-
-// A familiar illustrative school, not a live market-cap ranking.
-const DEFAULT_COMPANIES: FishCompany[] = [
-  { symbol: "NVDA", name: "NVIDIA", color: "#76b900" },
-  { symbol: "AAPL", name: "Apple", color: "#202833" },
-  { symbol: "MSFT", name: "Microsoft", color: "#737373" },
-  { symbol: "GOOGL", name: "Alphabet", color: "#4285f4" },
-  { symbol: "AMZN", name: "Amazon", color: "#232f3e" },
-  { symbol: "META", name: "Meta", color: "#0866ff" },
-  { symbol: "TSLA", name: "Tesla", color: "#e82127" },
-  { symbol: "AVGO", name: "Broadcom", color: "#cc092f" },
-  { symbol: "TSM", name: "TSMC", color: "#ca2934" },
-  { symbol: "BRK.B", name: "Berkshire Hathaway", mark: "B", color: "#294e66" },
-  { symbol: "WMT", name: "Walmart", color: "#0071ce" },
-  { symbol: "JPM", name: "JPMorgan Chase", mark: "JPM", color: "#274e73" },
-  { symbol: "LLY", name: "Eli Lilly", color: "#d52b1e" },
-  { symbol: "V", name: "Visa", color: "#1a1f71" },
-  { symbol: "ORCL", name: "Oracle", color: "#f80000" },
-  { symbol: "MA", name: "Mastercard", color: "#f79e1b" },
-  { symbol: "XOM", name: "ExxonMobil", mark: "X", color: "#d71920" },
-  { symbol: "COST", name: "Costco", mark: "C", color: "#d32b2a" },
-  { symbol: "NFLX", name: "Netflix", color: "#e50914" },
-  { symbol: "SAP", name: "SAP", color: "#008fd3" },
-  { symbol: "JNJ", name: "Johnson & Johnson", mark: "J&J", color: "#d51920" },
-  { symbol: "PG", name: "Procter & Gamble", mark: "P&G", color: "#174c99" },
-  { symbol: "ASML", name: "ASML", color: "#2456a8" },
-  { symbol: "BAC", name: "Bank of America", mark: "BA", color: "#dc2334" },
-  { symbol: "HD", name: "Home Depot", mark: "HD", color: "#ed731d" },
-  { symbol: "BABA", name: "Alibaba", color: "#ff6a00" },
-  { symbol: "AMD", name: "AMD", color: "#252d35" },
-  { symbol: "ADBE", name: "Adobe", color: "#fa0f00" },
-  { symbol: "KO", name: "Coca-Cola", mark: "C", color: "#e32636" },
-  { symbol: "DIS", name: "Disney", mark: "D", color: "#1b548b" },
-];
+type Ripple = { x: number; y: number; age: number; kind: "feed" | "bite" | "hover"; radius: number };
 
 function clamp(value: number, min: number, max: number) { return Math.max(min, Math.min(max, value)); }
 
@@ -60,7 +26,7 @@ export default function FishSchool({ compact = false, companies, onCompanyClick 
   const clickRef = useRef(onCompanyClick);
   const [tooltip, setTooltip] = useState<{ company: FishCompany; x: number; y: number } | null>(null);
   const [feedCount, setFeedCount] = useState(0);
-  const identities = useMemo(() => companies?.length ? companies.slice(0, 30) : DEFAULT_COMPANIES, [companies]);
+  const identities = useMemo(() => companies.slice(0, FISH_SCHOOL_SIZE), [companies]);
 
   useEffect(() => { clickRef.current = onCompanyClick; }, [onCompanyClick]);
 
@@ -103,7 +69,6 @@ export default function FishSchool({ compact = false, companies, onCompanyClick 
           phase: index * 1.79,
           angle: heading,
           index,
-          fed: 0,
           foraging: 0,
           coast: 0,
         };
@@ -158,22 +123,44 @@ export default function FishSchool({ compact = false, companies, onCompanyClick 
       }
     }
 
+    const rippleDuration = (ripple: Ripple) => ripple.kind === "feed" ? 1.8 : 1.25;
+    function addRipple(x: number, y: number, kind: Ripple["kind"], radius: number) {
+      if (reducedMotion) return;
+      // Leave the disturbance in the water instead of attaching a shrinking ring
+      // to the fish. All fish share this water palette, regardless of body colour.
+      ripples.push({ x, y, age: 0, kind, radius });
+      if (ripples.length > 24) ripples.splice(0, ripples.length - 24);
+    }
+
     function draw() {
       if (!context || !width || !height) return;
       context.clearRect(0, 0, width, height);
       drawWater();
       for (const ripple of ripples) {
-        const progress = clamp(ripple.age / (ripple.eaten ? .8 : 1.7), 0, 1);
-        context.beginPath();
-        context.ellipse(ripple.x, ripple.y, 4 + progress * (ripple.eaten ? 20 : 65), 3 + progress * (ripple.eaten ? 14 : 45), 0, 0, Math.PI * 2);
-        context.strokeStyle = `rgba(${dark ? "103, 151, 202" : "105, 177, 201"}, ${(1 - progress) * .35})`;
-        context.lineWidth = 1;
-        context.stroke();
-        if (!ripple.eaten) {
+        const duration = rippleDuration(ripple);
+        const rings = ripple.kind === "feed" ? 2 : 1;
+        const waterColor = dark ? "104, 151, 194" : "111, 170, 194";
+        for (let ring = 0; ring < rings; ring++) {
+          const age = ripple.age - ring * .18;
+          if (age <= 0) continue;
+          const progress = clamp(age / duration, 0, 1);
+          const expansion = 1 - Math.pow(1 - progress, 1.35);
+          const growth = ripple.kind === "feed" ? 63 : ripple.radius * 1.65;
+          const radius = ripple.radius + expansion * growth;
+          const fadeIn = Math.min(age / .12, 1);
+          const strength = ripple.kind === "hover" ? .13 : .22;
+          const opacity = fadeIn * Math.pow(1 - progress, 1.6) * strength * (dark ? .85 : 1) * (ring ? .65 : 1);
+          context.save();
           context.beginPath();
-          context.ellipse(ripple.x, ripple.y, 3 + progress * 40, 2 + progress * 29, 0, 0, Math.PI * 2);
-          context.strokeStyle = `rgba(111, 184, 208, ${(1 - progress) * .26})`;
+          context.ellipse(ripple.x, ripple.y, radius, radius * .68, 0, 0, Math.PI * 2);
+          // A low-contrast soft edge avoids the hard outline of a selection halo.
+          context.strokeStyle = `rgba(${waterColor}, ${opacity * .22})`;
+          context.lineWidth = 2.8;
           context.stroke();
+          context.strokeStyle = `rgba(${waterColor}, ${opacity})`;
+          context.lineWidth = .8;
+          context.stroke();
+          context.restore();
         }
       }
       for (const food of foods) {
@@ -238,13 +225,7 @@ export default function FishSchool({ compact = false, companies, onCompanyClick 
         context.quadraticCurveTo(-r * .18, r * 1.19, r * .45, r * .8);
         context.lineTo(r * .6, r * .5);
         context.fill();
-        if (item.fed > 0 || item.index === hovered) {
-          context.strokeStyle = pink ? "rgba(217, 138, 170, .5)" : "rgba(111, 184, 208, .5)";
-          context.lineWidth = 1;
-          context.beginPath();
-          context.ellipse(0, 0, r * 1.38 + item.fed * 3, r * .95 + item.fed * 3, 0, 0, Math.PI * 2);
-          context.stroke();
-        }
+
         context.restore();
         const mark = marksRef.current[item.index];
         if (mark) {
@@ -268,7 +249,7 @@ export default function FishSchool({ compact = false, companies, onCompanyClick 
       }
       for (let i = ripples.length - 1; i >= 0; i--) {
         ripples[i].age += dt;
-        if (ripples[i].age > (ripples[i].eaten ? .8 : 1.7)) ripples.splice(i, 1);
+        if (ripples[i].age > rippleDuration(ripples[i]) + .18) ripples.splice(i, 1);
       }
       // Read one frame consistently so earlier fish do not become accidental leaders.
       const previousFish = fish.map(item => ({ ...item }));
@@ -336,8 +317,7 @@ export default function FishSchool({ compact = false, companies, onCompanyClick 
           if (nearest) {
             if (nearestDistance < item.radius * .7 + 4) {
               foods.splice(foods.indexOf(nearest), 1);
-              item.fed = 1;
-              ripples.push({ x: nearest.x, y: nearest.y, age: 0, eaten: true });
+              addRipple(nearest.x, nearest.y, "bite", item.radius);
             } else {
               const foodSpeed = compact ? .85 : 1.2;
               ax += ((nearest.x - item.x) / nearestDistance * foodSpeed - item.vx) * .065;
@@ -384,7 +364,6 @@ export default function FishSchool({ compact = false, companies, onCompanyClick 
           const difference = Math.atan2(Math.sin(targetAngle - item.angle), Math.cos(targetAngle - item.angle));
           item.angle += clamp(difference * .1, -.065, .065) * step;
         }
-        item.fed = Math.max(0, item.fed - dt);
       }
     }
 
@@ -412,14 +391,9 @@ export default function FishSchool({ compact = false, companies, onCompanyClick 
         const distance = 6 + (i % 4) * 5;
         foods.push({ x: clamp(x + Math.cos(angle) * distance, 18, width - 18), y: clamp(y + Math.sin(angle) * distance, compact ? 42 : 54, height - (compact ? 55 : 72)), age: 0, drift: i * .8 });
       }
-      ripples.push({ x, y, age: 0 });
-      if (ripples.length > 15) ripples.splice(0, ripples.length - 15);
+      addRipple(x, y, "feed", 4);
       setFeedCount((value) => value + 1);
-      if (reducedMotion) {
-        const nearest = [...fish].sort((a, b) => Math.hypot(a.x - x, a.y - y) - Math.hypot(b.x - x, b.y - y))[0];
-        if (nearest) nearest.fed = 1;
-        draw();
-      }
+      if (reducedMotion) draw();
     }
     feedRef.current = () => feed(width * (.4 + Math.random() * .2), height * (.4 + Math.random() * .18));
 
@@ -432,6 +406,7 @@ export default function FishSchool({ compact = false, companies, onCompanyClick 
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
       const hit = hitTest(x, y);
+      if (hit && hit.index !== hovered) addRipple(hit.x, hit.y, "hover", hit.radius);
       hovered = hit?.index ?? -1;
       if (hit) {
         setTooltip({ company: identities[hit.index], x: clamp(hit.x, 85, width - 85), y: hit.y - hit.radius - 12 });
@@ -455,7 +430,11 @@ export default function FishSchool({ compact = false, companies, onCompanyClick 
     function onKey(event: KeyboardEvent) {
       if (event.key === " " || event.key === "Enter") { event.preventDefault(); feedRef.current(); }
     }
-    function onMotionChange() { reducedMotion = motionQuery.matches || document.documentElement.dataset.reducedMotion === "true"; start(); }
+    function onMotionChange() {
+      reducedMotion = motionQuery.matches || document.documentElement.dataset.reducedMotion === "true";
+      if (reducedMotion) ripples.length = 0;
+      start();
+    }
     const resizeObserver = new ResizeObserver(resize);
     resizeObserver.observe(container);
     const intersectionObserver = new IntersectionObserver(([entry]) => { visible = entry.isIntersecting; start(); }, { threshold: .02 });
@@ -463,7 +442,7 @@ export default function FishSchool({ compact = false, companies, onCompanyClick 
     const themeObserver = new MutationObserver(() => {
       dark = document.documentElement.dataset.theme === "dark" || document.documentElement.classList.contains("dark");
       const nextReducedMotion = motionQuery.matches || document.documentElement.dataset.reducedMotion === "true";
-      if (nextReducedMotion !== reducedMotion) { reducedMotion = nextReducedMotion; start(); }
+      if (nextReducedMotion !== reducedMotion) { reducedMotion = nextReducedMotion; if (reducedMotion) ripples.length = 0; start(); }
       if (reducedMotion) draw();
     });
     themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-reduced-motion", "class"] });
@@ -500,7 +479,7 @@ export default function FishSchool({ compact = false, companies, onCompanyClick 
       <div className="fish-school__orbital-label" aria-hidden="true"><span>{t("Ideas in motion")}</span><strong>{t("stay curious.")}</strong></div>
       <canvas ref={canvasRef} className="fish-school__canvas" role="button" tabIndex={0} aria-label={t("Interactive company fish. Click the water or press Space to feed. This illustrative school is not a live market-cap ranking.")} />
       <div className="fish-school__marks" aria-hidden="true">
-        {identities.map((company, index) => <span key={company.symbol} ref={(element) => { marksRef.current[index] = element; }} className="fish-school__mark" style={{ "--fish-size": "40px" } as CSSProperties}>
+        {identities.map((company, index) => <span key={company.symbol} ref={(element) => { marksRef.current[index] = element; }} className="fish-school__mark" data-company-symbol={company.symbol} style={{ "--fish-size": "40px" } as CSSProperties}>
           <CompanyMark symbol={company.symbol} mark={company.mark} color={company.color} size={18} />
         </span>)}
       </div>

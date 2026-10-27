@@ -1,2 +1,4 @@
 import { Welcome } from '@/components/workspace';
-export default function Page() { return <Welcome />; }
+import { selectFishCompanies } from '@/lib/fish-companies';
+export const dynamic = 'force-dynamic';
+export default function Page() { return <Welcome fishCompanies={selectFishCompanies()} />; }

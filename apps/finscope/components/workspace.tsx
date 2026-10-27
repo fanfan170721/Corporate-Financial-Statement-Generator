@@ -6,13 +6,14 @@ import { useSearchParams } from 'next/navigation';
 import { ArrowRight, ArrowUpRight, Sparkles, Plus, X, Check, Bookmark, Waves, Layers3, Clock3, ScanLine, FileText, ShieldCheck, SlidersHorizontal, ChevronRight, CircleHelp } from 'lucide-react';
 import { toast } from 'sonner';
 import FishSchool from './fish-school';
+import type { FishCompany } from '@/lib/fish-companies';
 import CompanyMark from './company-mark';
 import { CompanySearch, useApp, SectionHeading, LoginGate, GuestAccessButton, GuestSessionNotice, api, coverageLabel } from './shell';
 import { getCompany } from '@/lib/companies';
 import type { Company, Report } from '@/lib/types';
 import EmailAuth from './email-auth';
 
-function EntryScene() {
+function EntryScene({fishCompanies}:{fishCompanies:FishCompany[]}) {
  const {t}=useI18n();
   const { viewer } = useApp();
   const signedIn = Boolean(viewer?.user);
@@ -31,17 +32,17 @@ function EntryScene() {
           {guest && <p className="entry-security">{t("Guest workspace · available for 24 hours in this browser.")}</p>}
           {!signedIn && !guest && <p className="entry-security"><ShieldCheck size={14}/>{t("Your saved work stays with your account.")}</p>}
         </div>
-        <div className="entry-ocean" aria-label={t("Interactive company fish pond")}><FishSchool/></div>
+        <div className="entry-ocean" aria-label={t("Interactive company fish pond")}><FishSchool companies={fishCompanies}/></div>
       </section>
     </div>
   );
 }
 
-export function Welcome() { return <EntryScene/>; }
+export function Welcome({fishCompanies}:{fishCompanies:FishCompany[]}) { return <EntryScene fishCompanies={fishCompanies}/>; }
 
-export function LoginPage() {
+export function LoginPage({fishCompanies}:{fishCompanies:FishCompany[]}) {
  const {t}=useI18n();
-  return <div className="page entry-page auth-page"><section className="entry-layout"><EmailAuth/><div className="entry-ocean" aria-label={t("Interactive company fish pond")}><FishSchool/></div></section></div>;
+  return <div className="page entry-page auth-page"><section className="entry-layout"><EmailAuth/><div className="entry-ocean" aria-label={t("Interactive company fish pond")}><FishSchool companies={fishCompanies}/></div></section></div>;
 }
 
 function reportDestination(symbol:string,signedIn:boolean){const destination='/analyze?symbols='+encodeURIComponent(symbol)+'&mode=live';return signedIn?destination:'/login?return_to='+encodeURIComponent(destination);}
