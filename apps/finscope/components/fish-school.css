@@ -25,10 +25,8 @@
   display: grid;
   place-items: center;
   border-radius: 50%;
-  --fish-ink: #517d94;
-  --fish-mark-bg: #deeff6;
-  background: var(--fish-mark-bg);
-  border: 1px solid rgba(198, 225, 237, .7);
+  background: rgba(255, 255, 255, .94);
+  border: 1px solid rgba(255, 255, 255, .95);
   box-shadow: 0 2px 6px rgba(69, 102, 116, .035);
   will-change: transform;
   opacity: 0;
@@ -36,14 +34,6 @@
   color: #202833;
 }
 .fish-school__mark .company-mark { width: 72%; height: 72%; }
-.fish-school__mark .company-mark :where([fill]:not([fill="none"])) { fill: var(--fish-ink) !important; }
-.fish-school__mark .company-mark :where([stroke]:not([stroke="none"])) { stroke: var(--fish-ink) !important; }
-.fish-school__mark .company-mark [fill="#fff"],
-.fish-school__mark .company-mark [fill="#ffffff"],
-.fish-school__mark .company-mark [fill="white"] { fill: var(--fish-mark-bg) !important; }
-.fish-school__mark .company-mark [stroke="#fff"],
-.fish-school__mark .company-mark [stroke="#ffffff"],
-.fish-school__mark .company-mark [stroke="white"] { stroke: var(--fish-mark-bg) !important; }
 .fish-school__topline { position: absolute; top: 26px; left: 28px; right: 28px; display: flex; justify-content: space-between; align-items: center; pointer-events: none; z-index: 3; }
 .fish-school__eyebrow { font: 600 10px/1.5 var(--font-geist-mono, monospace); letter-spacing: 2px; color: var(--water-muted); }
 .fish-school__live { display: inline-flex; align-items: center; gap: 7px; font-size: 10px; color: var(--water-muted); }
@@ -71,7 +61,7 @@
 .fish-school--compact .fish-school__orbital-label strong { font-size: 54px; }
 .fish-school--compact .fish-school__orbital-label span { font-size: 8px; letter-spacing: 2px; }
 [data-theme="dark"] .fish-school, .dark .fish-school { --water-ink: #e1e7ed; --water-muted: #75828f; --water-line: rgba(105, 138, 177, .14); background: radial-gradient(ellipse at 35% 40%, rgba(17, 56, 97, .32), transparent 60%), radial-gradient(ellipse at 75% 65%, rgba(103, 30, 48, .22), transparent 50%); }
-[data-theme="dark"] .fish-school__mark, .dark .fish-school__mark { --fish-ink: #b5cee5; --fish-mark-bg: #2e5379; border-color: #41688d; box-shadow: 0 2px 6px rgba(0, 0, 0, .08); }
+[data-theme="dark"] .fish-school__mark, .dark .fish-school__mark { background: #eff2f5; border-color: #eff2f5; box-shadow: 0 2px 6px rgba(0, 0, 0, .08); }
 [data-theme="dark"] .fish-school__feed, .dark .fish-school__feed { background: rgba(23, 32, 44, .85); border-color: rgba(132, 156, 180, .2); }
 [data-theme="dark"] .fish-school__feed:hover, .dark .fish-school__feed:hover { background: #26374b; }
 [data-theme="dark"] .fish-school__tooltip, .dark .fish-school__tooltip { background: #dbe5f0; color: #182535; }

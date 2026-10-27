@@ -186,22 +186,27 @@ export default function FishSchool({ compact = false, companies, onCompanyClick 
       for (const item of fish) {
         const { x, y, radius: r, angle } = item;
         const wiggle = Math.sin(elapsed * 5 + item.phase) * .14;
-        const bodyColor = dark ? "rgba(53, 101, 151, .8)" : "rgba(181, 218, 234, .85)";
-        const finColor = dark ? "rgba(60, 115, 164, .46)" : "rgba(168, 209, 228, .58)";
+        const pink = item.index % 2 === 1;
+        const bodyColor = dark
+          ? (pink ? "rgba(132, 47, 75, .8)" : "rgba(53, 101, 151, .8)")
+          : (pink ? "rgba(247, 207, 222, .85)" : "rgba(181, 218, 234, .85)");
+        const finColor = dark
+          ? (pink ? "rgba(153, 63, 88, .46)" : "rgba(60, 115, 164, .46)")
+          : (pink ? "rgba(244, 193, 214, .58)" : "rgba(168, 209, 228, .58)");
         context.save();
         context.translate(x, y);
         context.rotate(angle);
         // Twin flowing fins sit behind a local vector company mark.
         context.fillStyle = finColor;
         context.beginPath();
-        context.moveTo(-r * .76, 0);
-        context.bezierCurveTo(-r * 1.15, -r * .25, -r * 1.7, -r * (.68 + wiggle), -r * 1.85, -r * (.6 + wiggle));
-        context.quadraticCurveTo(-r * 1.58, 0, -r * 1.85, r * (.6 - wiggle));
-        context.bezierCurveTo(-r * 1.4, r * (.6 - wiggle), -r * 1.1, r * .15, -r * .76, 0);
+        context.moveTo(-r * .88, 0);
+        context.bezierCurveTo(-r * 1.3, -r * .25, -r * 1.85, -r * (.68 + wiggle), -r * 2, -r * (.6 + wiggle));
+        context.quadraticCurveTo(-r * 1.73, 0, -r * 2, r * (.6 - wiggle));
+        context.bezierCurveTo(-r * 1.55, r * (.6 - wiggle), -r * 1.25, r * .15, -r * .88, 0);
         context.fill();
         context.fillStyle = bodyColor;
         context.beginPath();
-        context.ellipse(0, 0, r * 1.16, r * .71, 0, 0, Math.PI * 2);
+        context.ellipse(0, 0, r * 1.35, r * .71, 0, 0, Math.PI * 2);
         context.fill();
         context.beginPath();
         context.moveTo(-r * .23, -r * .59);
@@ -215,10 +220,10 @@ export default function FishSchool({ compact = false, companies, onCompanyClick 
         context.lineTo(r * .6, r * .5);
         context.fill();
         if (item.fed > 0 || item.index === hovered) {
-          context.strokeStyle = "rgba(111, 184, 208, .5)";
+          context.strokeStyle = pink ? "rgba(217, 138, 170, .5)" : "rgba(111, 184, 208, .5)";
           context.lineWidth = 1;
           context.beginPath();
-          context.ellipse(0, 0, r * 1.19 + item.fed * 3, r * .95 + item.fed * 3, 0, 0, Math.PI * 2);
+          context.ellipse(0, 0, r * 1.38 + item.fed * 3, r * .95 + item.fed * 3, 0, 0, Math.PI * 2);
           context.stroke();
         }
         context.restore();

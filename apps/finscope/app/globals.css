@@ -78,7 +78,11 @@
 .entry-copy h1>span:after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:5px;background:var(--pink);opacity:.7;z-index:-1;transform:rotate(-1deg)}
 .entry-copy>p{max-width:310px;color:var(--muted);font-size:14px;line-height:1.9}
 .entry-actions{margin-top:31px}
-.entry-actions>.button{min-width:170px;min-height:49px;justify-content:space-between;padding:13px 22px;font-size:13px}
+.entry-actions>.button{min-width:170px;min-height:49px;justify-content:space-between;padding:13px 22px;font-size:13px;background:#c54276;border-color:#c54276;color:#fff;box-shadow:0 6px 18px #c5427618}
+.entry-actions>.button:hover{background:#b63668;border-color:#b63668;box-shadow:0 8px 22px #c5427628}
+.entry-actions>.button:focus-visible{outline-color:#e6a4bf}
+[data-theme="dark"] .entry-actions>.button{background:#ad3b68;border-color:#ad3b68;color:#fff}
+[data-theme="dark"] .entry-actions>.button:hover{background:#bf4776;border-color:#bf4776}
 .entry-account-link{margin-top:17px;font-size:12px;color:var(--muted)}
 .entry-account-link>a{color:var(--ink);margin-left:5px;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:4px}
 .entry-account-link>a:hover{color:var(--blue-strong);text-decoration-color:var(--blue)}
