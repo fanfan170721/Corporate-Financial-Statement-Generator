@@ -8,7 +8,7 @@
   width: 100%;
   height: 100%;
   min-height: 460px;
-  background: radial-gradient(ellipse at 36% 41%, rgba(215, 239, 247, .35), transparent 57%), radial-gradient(ellipse at 75% 60%, rgba(255, 225, 235, .28), transparent 46%);
+  background: radial-gradient(ellipse at 36% 41%, rgba(199, 229, 248, .42), transparent 57%), radial-gradient(ellipse at 75% 60%, rgba(225, 242, 252, .36), transparent 46%), #f2faff;
   color: var(--water-ink);
   border-radius: inherit;
   -webkit-tap-highlight-color: transparent;
@@ -60,7 +60,7 @@
 .fish-school--compact .fish-school__feed { min-height: 29px; padding: 0 9px; font-size: 10px; }
 .fish-school--compact .fish-school__orbital-label strong { font-size: 54px; }
 .fish-school--compact .fish-school__orbital-label span { font-size: 8px; letter-spacing: 2px; }
-[data-theme="dark"] .fish-school, .dark .fish-school { --water-ink: #e1e7ed; --water-muted: #75828f; --water-line: rgba(105, 138, 177, .14); background: radial-gradient(ellipse at 35% 40%, rgba(17, 56, 97, .32), transparent 60%), radial-gradient(ellipse at 75% 65%, rgba(103, 30, 48, .22), transparent 50%); }
+[data-theme="dark"] .fish-school, .dark .fish-school { --water-ink: #e1e7ed; --water-muted: #75828f; --water-line: rgba(105, 138, 177, .14); background: radial-gradient(ellipse at 35% 40%, rgba(17, 56, 97, .32), transparent 60%), radial-gradient(ellipse at 75% 65%, rgba(103, 30, 48, .14), transparent 50%), #0c192b; }
 [data-theme="dark"] .fish-school__mark, .dark .fish-school__mark { background: #eff2f5; border-color: #eff2f5; box-shadow: 0 2px 6px rgba(0, 0, 0, .08); }
 [data-theme="dark"] .fish-school__feed, .dark .fish-school__feed { background: rgba(23, 32, 44, .85); border-color: rgba(132, 156, 180, .2); }
 [data-theme="dark"] .fish-school__feed:hover, .dark .fish-school__feed:hover { background: #26374b; }

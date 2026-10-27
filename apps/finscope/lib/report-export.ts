@@ -9,22 +9,22 @@ function cell(value: string | number | null | undefined): string {
   return '"' + text.replaceAll('"', '""') + '"';
 }
 
-export function reportToCsv(report: Report): string {
+export function reportToCsv(report: Report, t: (source: string) => string = (source) => source): string {
   const years = report.periods.map((period) => period.year);
   const rows: (string | number | null | undefined)[][] = [
     ["Finscope", report.company.name, report.symbol],
-    ["Evidence", report.mode === "demo" ? "SYNTHETIC DEMONSTRATION — NOT ACTUAL FINANCIAL DATA" : report.dataKind === "filing-snapshot" ? "FROZEN PUBLISHED-FILING SNAPSHOT" : "PUBLISHED FINANCIAL STATEMENTS"],
-    ["Provider", report.provider], ["Reporting currency", report.currency], ["Financial period ending", report.dataAsOf],
-    ["Source retrieved", report.retrievedAt], ["Report saved", report.generatedAt],
-    ["Definition", "Amounts in reporting-currency millions unless a row explicitly states per-share data or million shares. Empty cells indicate unavailable observations, never zero."],
-    [], ["Statement", "Section", "Line item", "Unit", ...years],
+    [t("Evidence"), t(report.mode === "demo" ? "SYNTHETIC DEMONSTRATION — NOT ACTUAL FINANCIAL DATA" : report.dataKind === "filing-snapshot" ? "FROZEN PUBLISHED-FILING SNAPSHOT" : "PUBLISHED FINANCIAL STATEMENTS")],
+    [t("Provider"), report.provider], [t("Reporting currency"), report.currency], [t("Financial period ending"), report.dataAsOf],
+    [t("Source retrieved"), report.retrievedAt], [t("Report saved"), report.generatedAt],
+    [t("Definition"), t("Amounts in reporting-currency millions unless a row explicitly states per-share data or million shares. Empty cells indicate unavailable observations, never zero.")],
+    [], [t("Statement"), t("Section"), t("Line item"), t("Unit"), ...years],
   ];
   if (report.statements?.length) for (const statement of report.statements) for (const row of statement.rows) {
     const unit = row.unit === "currency-per-share" ? `${report.currency} per share` : row.unit === "million-shares" ? "Million shares" : `${report.currency} million`;
-    rows.push([statement.title, row.section, row.label, unit, ...years.map((year) => row.values[year])]);
+    rows.push([t(statement.title), row.section ? t(row.section) : row.section, t(row.label), t(unit), ...years.map((year) => row.values[year])]);
   }
-  for (const [key, label] of fields) rows.push(["Analytical metrics", "", label, `${report.currency} million`, ...report.periods.map((period) => period[key])]);
-  rows.push([], ["Methodology and limitations", report.note]);
-  for (const source of report.sources) rows.push(["Source", source.label, source.url, source.asOf]);
+  for (const [key, label] of fields) rows.push([t("Analytical metrics"), "", t(label), t(`${report.currency} million`), ...report.periods.map((period) => period[key])]);
+  rows.push([], [t("Methodology and limitations"), report.note ? t(report.note) : report.note]);
+  for (const source of report.sources) rows.push([t("Source"), source.label, source.url, source.asOf]);
   return "\ufeff" + rows.map((row) => row.map(cell).join(",")).join("\r\n");
 }

@@ -73,6 +73,23 @@ function request(path: string, method = "GET", value?: unknown, origin = "https:
   return new Request(`https://finscope.test${path}`, { method, headers: { Origin: origin, "Content-Type": "application/json" }, ...(value !== undefined ? { body: JSON.stringify(value) } : {}) });
 }
 
+test('language preferences persist per account and survive unrelated preference updates', async () => {
+  const f=await fixture();
+  try {
+    assert.equal((await f.server.getViewer()).preferences.locale,'en-CA');
+    assert.equal((await f.server.handlePreferences(request('/api/preferences','PATCH',{locale:'fr-CA'}))).status,200);
+    assert.equal((await f.server.getViewer()).preferences.locale,'fr-CA');
+    await f.server.handlePreferences(request('/api/preferences','PATCH',{theme:'dark'}));
+    assert.equal((await f.server.getViewer()).preferences.locale,'fr-CA');
+    f.setUser('bob');
+    assert.equal((await f.server.getViewer()).preferences.locale,'en-CA');
+    f.setUser('alice');
+    assert.equal((await f.server.getViewer()).preferences.locale,'fr-CA');
+    assert.equal((await f.server.handlePreferences(request('/api/preferences','PATCH',{locale:'fr-FR'}))).status,400);
+    assert.equal((await f.server.getViewer()).preferences.locale,'fr-CA');
+  } finally { f.close(); }
+});
+
 test("anonymous visitors can inspect capabilities but cannot create reports", async () => {
   const f = await fixture();
   try {

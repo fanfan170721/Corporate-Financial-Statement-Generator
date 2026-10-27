@@ -15,12 +15,13 @@ export function isAdmin(user: AuthUser | null): boolean {
   return Boolean((env.ADMIN_USER_ID && user.userId === env.ADMIN_USER_ID) || (env.ADMIN_EMAIL && user.email.toLowerCase() === env.ADMIN_EMAIL.trim().toLowerCase()));
 }
 const LEASE_MS = 10 * 60_000;
-const DEFAULT_PREFERENCES: Preferences = { theme: "light", interests: [], defaultMode: "live", reducedMotion: false };
+const DEFAULT_PREFERENCES: Preferences = { theme: "light", interests: [], defaultMode: "live", reducedMotion: false, locale: "en-CA" };
 const DEFAULT_SCHEDULE: Schedule = { symbols: [], time: "08:00", timezone: "America/Toronto", enabled: false, lastRun: null };
 const symbolSchema = z.string().trim().min(1).max(20).regex(/^[A-Za-z0-9.^-]+$/).transform((value) => value.toUpperCase());
 const symbolsSchema = z.array(symbolSchema).max(3).refine((items) => new Set(items).size === items.length, "Choose each company only once.");
 const preferencesSchema = z.object({
   theme: z.enum(["light", "dark", "system"]).optional(),
+  locale: z.enum(["en-CA", "fr-CA"]).optional(),
   interests: z.array(z.string().trim().min(1).max(60)).max(20).optional(),
   defaultMode: z.enum(["live", "demo"]).optional(),
   reducedMotion: z.boolean().optional(),

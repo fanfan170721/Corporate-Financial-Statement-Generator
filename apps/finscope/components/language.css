@@ -1,0 +1,9 @@
+.language-switch{display:inline-flex;align-items:center;padding:3px;border:1px solid var(--line);border-radius:9px;background:var(--panel);flex-shrink:0;gap:2px}
+.language-switch button{font:inherit;font-size:10px;letter-spacing:.04em;padding:7px 8px;border:0;border-radius:6px;background:transparent;color:var(--muted);cursor:pointer;min-width:29px}
+.language-switch button[aria-pressed=true]{background:var(--blue-soft);color:var(--ink);font-weight:650}
+.language-switch button:hover{color:var(--ink)}.language-switch button:focus-visible{outline:2px solid var(--blue-strong);outline-offset:2px}
+html[lang=fr-CA] .header-inner{gap:20px}html[lang=fr-CA] .main-nav{gap:20px}
+@media(max-width:1100px){html[lang=fr-CA] .main-nav{gap:12px}html[lang=fr-CA] .header-inner{gap:14px}}
+@media(max-width:650px){.language-switch button{padding:7px 6px;font-size:10px}html[lang=fr-CA] .header-inner{gap:10px}}
+@media(max-width:560px){.header-actions .guest-header-badge,.header-actions .header-company-search{display:none}.header-actions{flex-shrink:0}}
+@media(max-width:420px){.workspace-header .header-inner>.brand>strong{display:none}}

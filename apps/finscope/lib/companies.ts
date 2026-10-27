@@ -1,4 +1,5 @@
 import type { Company } from "./types";
+import { companySearchTerm, frenchAliasSymbols, frenchSearchSectors } from "./company-search";
 
 /** A curated discovery universe, not a market-cap ranking. Never show as a live top 30. */
 export const COMPANIES: Company[] = [
@@ -71,16 +72,18 @@ export function getCompany(symbol: string): Company | undefined {
 }
 
 function normalize(value: string): string {
-  return value.trim().toLocaleLowerCase().replace(/[\s\-_.]/g, "");
+  return companySearchTerm(value).replace(/[\s\-_.]/g, "");
 }
 
 /** Weighted matching covers Chinese aliases, English names, symbols and common typos. */
 export function searchLocalCompanies(query: string, limit = 12): Company[] {
   const term = normalize(query);
+  const frenchAliases=frenchAliasSymbols(query);
+  const sectors=frenchSearchSectors(query);
   if (!term) return COMPANIES.slice(0, limit);
   return COMPANIES.map((company) => {
     const names = [company.symbol, company.name, company.nameEn, ORIGINAL_NAMES[company.symbol] ?? "", ...(ALIASES[company.symbol] ?? [])].map(normalize);
-    const score = Math.max(...names.map((name) => name === term ? 100 : name.startsWith(term) ? 80 : name.includes(term) ? 60 : fuzzyMatch(term, name) ? 20 : 0));
+    const score = sectors.size ? (sectors.has(company.sector)?70:0) : Math.max(frenchAliases.has(company.symbol)?100:0,...names.map((name) => name === term ? 100 : name.startsWith(term) ? 80 : name.includes(term) ? 60 : fuzzyMatch(term, name) ? 20 : 0));
     return { company, score };
   }).filter(({ score }) => score > 0).sort((a, b) => b.score - a.score).slice(0, limit).map(({ company }) => company);
 }

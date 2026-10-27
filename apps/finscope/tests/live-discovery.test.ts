@@ -16,7 +16,7 @@ const load = async () => await import(await moduleUrl("market", true)) as Market
 const agent = "Finscope test contact@example.test";
 const env = { SEC_USER_AGENT: agent, FMP_API_KEY: "" };
 // All company values are invented for adapter tests, never production fixtures.
-const directory = { fields: ["cik", "name", "ticker", "exchange"], data: [[111, "Fixture Alpha Corporation", "FXALPHA", "Nasdaq"], [222, "Fixture Without Financials", "FXNONE", "NYSE"], [333, "Fixture Dual Class", "FXD-A", "NYSE"], [333, "Fixture Dual Class", "FXD-B", "NYSE"]] };
+const directory = { fields: ["cik", "name", "ticker", "exchange"], data: [[111, "Fixture Alpha Corporation", "FXALPHA", "Nasdaq"], [222, "Fixture Without Financials", "FXNONE", "NYSE"], [333, "Fixture Dual Class", "FXD-A", "NYSE"], [333, "Fixture Dual Class", "FXD-B", "NYSE"], [444, "ROYAL BANK OF CANADA", "RY", "NYSE"], [555, "Québec Manufacturing Fixture", "FXQC", "NYSE"]] };
 function financials(cik: number) {
   const tags = ["Revenues", "NetIncomeLoss", "NetCashProvidedByUsedInOperatingActivities", "PaymentsToAcquirePropertyPlantAndEquipment", "Assets", "Liabilities", "CashAndCashEquivalentsAtCarryingValue", "DebtAndFinanceLeaseObligations", "GrossProfit", "OperatingIncomeLoss", "StockholdersEquity"];
   const durations = new Set(["Revenues", "NetIncomeLoss", "NetCashProvidedByUsedInOperatingActivities", "PaymentsToAcquirePropertyPlantAndEquipment", "GrossProfit", "OperatingIncomeLoss"]);
@@ -51,6 +51,20 @@ test("directory discovery searches issuers outside the curated catalogue and ver
   assert.equal(results[0].coverage?.completeness, 100);
   assert.ok(f.requested.some(url => url.endsWith("CIK0000000111.json")));
   assert.equal(f.requested.some(url => url.includes("submissions")), false, "Autocomplete must not fetch optional company context");
+});
+
+test("French aliases and accent-insensitive names retain current directory identities and verification", async () => {
+  const market = await load();
+  const f = transport();
+  for (const query of ["Banque Royale du Canada", "société Banque Royale du Canada"]) {
+    const result = await market.searchCompanies(query, { env, fetcher:f.fetcher, live:true });
+    assert.equal(result[0]?.symbol,"RY");
+    assert.equal(Number(result[0]?.cik),444);
+    assert.equal(result[0]?.coverage?.status,"available");
+  }
+  const result = await market.searchCompanies("Quebec Manufacturing", { env, fetcher:f.fetcher, live:true });
+  assert.equal(result[0]?.symbol,"FXQC");
+  assert.ok(f.requested.some(url=>url.endsWith("CIK0000000555.json")));
 });
 
 test("a directory match and configured contact cannot falsely make missing or failing evidence ready", async () => {

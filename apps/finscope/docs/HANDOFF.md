@@ -2,6 +2,18 @@
 
 This document records Finscope's architecture, current service readiness and development priorities.
 
+## Bilingual interface — 27 October 2026
+
+The EN/FR switch selects `en-CA` or `fr-CA` throughout the interface, including authentication, reports, exports, planning and account settings. `components/i18n.tsx` provides context and the selector; `lib/i18n.ts` uses curated catalogues in `lib/locales/`. New visible strings require a French entry and preservation of named interpolation values. Company identities, original source quotations, saved user notes and previously generated AI content remain in their original language.
+
+The language is stored in a first-party cookie and, for signed-in accounts, in the existing preferences JSON. Server rendering reads the cookie with account preferences as the fallback. The shell receives the initial viewer and theme, and a prepaint script restores theme before display. Personalized HTML and component responses use `private, no-store` with cookie variation; hashed assets retain their existing cache behaviour. Do not restore an anonymous-first shell or an after-paint theme reset.
+
+`lib/company-search.ts` normalizes French accents and common request phrases, maps established French company aliases to their actual directory symbols, and recognizes French industry terms in the curated sector catalogue. It does not translate brand names literally, invent missing directory entries, expand financial coverage merely because an alias matches, or bypass evidence checks. French language and account preference tests supplement the existing discovery tests.
+
+The welcome page keeps sign-in primary for anonymous and guest visitors. A guest session can be resumed through the secondary action; registered sessions retain their direct workspace entry. The pond uses a pale blue water surface in light mode and muted navy at night. Existing fish motion and guest restrictions are preserved.
+
+Version 14 was published successfully on 27 October 2026 with 122 automated tests, TypeScript and the production build passing. Production-build browser checks covered EN/FR navigation and reloads, authentication forms, report charts/tables, light/dark water and 320/375px layouts. Live HTTP checks confirmed localized initial HTML, prepaint theme, private no-store document headers, and `états financiers de Microsoft` returning verified MSFT coverage. No new paid AI request or guest report credit was used for localization validation. Release identifiers are recorded in the root recovery document.
+
 ## Release brief — 27 October 2026, America/New_York
 
 **Broad company analysis starts with dependable financial evidence.** The SEC issuer directory now supplies discovery beyond the curated alias catalogue. Standardized company-facts reports replace the previous single-issuer path as the primary implementation. Financial statements, charts and provenance remain central; industry, filing links and dated employee disclosures are supplementary. Do not claim broad hiring, salary, employee-review or current-price coverage.
@@ -58,7 +70,7 @@ Start with README, `docs/GETTING-STARTED.md`, `docs/OPERATIONS.md`, `docs/AI-ACC
 5. `lib/credential-vault.ts` uses AES-GCM and scope-bound authenticated data. Keep the master key outside D1 and Git.
 6. Native links in `components/app-link.tsx` are intentional. The deployed Vinext client router failed on clicks despite valid routes. Do not restore `next/link` without production navigation checks.
 7. Database changes require new ordered migrations. Never edit deployed migrations. Preserve the handwritten AI grant-counter SQL trigger.
-8. Product copy stays natural English and describes practical financial analysis and planning.
+8. Product copy stays natural English and Canadian French and describes practical financial analysis and planning. Keep raw evidence and user-authored content intact.
 9. `/owner/setup` is a separate, narrowly scoped bootstrap gate, not an application-login fallback. It requires both `OWNER_SETUP_ENABLED` and `AUTH_TRUST_SITES_IDENTITY`, trusted Sites identity and exact normalized `ADMIN_EMAIL`. Never enable it on an untrusted direct public Worker origin. Registration still requires an actual email code.
 
 ## Change map

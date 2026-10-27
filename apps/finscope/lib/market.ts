@@ -2,6 +2,7 @@ import { COMPANIES, getCompany, searchLocalCompanies } from "./companies";
 import { DIRECT_ISSUERS, IssuerDataError, retrieveIssuerFinancials } from "./issuer-financials";
 import { parseSecFinancials } from "./sec-financials";
 import { getCompanyContext } from "./company-context";
+import { companySearchTerm, frenchAliasSymbols, normalizeCompanySearch } from "./company-search";
 import type { Company, DataCoverage, FinancialPeriod, Insight, Report, ReportMetrics, Source } from "./types";
 import type { EvidenceCache } from "./market-storage";
 
@@ -300,7 +301,7 @@ async function checkCompany(company: Company, options: ServiceOptions): Promise<
 
 function matchScore(company: Company, term: string, aliasSymbols: Set<string>): number {
   const symbol = company.symbol.toUpperCase();
-  const name = company.nameEn.toUpperCase();
+  const name = normalizeCompanySearch(company.nameEn).toUpperCase();
   if (symbol === term) return 1000;
   if (aliasSymbols.has(symbol)) return 900;
   if (name === term || name.startsWith(term + " ")) return 800;
@@ -320,8 +321,9 @@ export async function searchCompanies(query: string, options: ServiceOptions & {
   const aliases = searchLocalCompanies(term, limit);
   let candidates: Company[];
   if (term) {
-    const aliasSymbols = new Set(aliases.map(c => c.symbol));
-    const ranked = all.map(company => ({ company, score: matchScore(company, term.toUpperCase(), aliasSymbols) })).filter(item => item.score > 0).sort((a,b) => b.score - a.score);
+    const aliasSymbols = new Set([...aliases.map(c => c.symbol),...frenchAliasSymbols(term)]);
+    const normalized=companySearchTerm(term).toUpperCase();
+    const ranked = all.map(company => ({ company, score: matchScore(company, normalized, aliasSymbols) })).filter(item => item.score > 0).sort((a,b) => b.score - a.score);
     const exact = ranked.find(item => item.company.symbol.toUpperCase() === term.toUpperCase());
     candidates = exact ? [exact.company] : ranked.slice(0, limit).map(item => item.company);
     if (!exact) for (const company of aliases) if (!candidates.some(c => c.symbol === company.symbol) && candidates.length < limit) candidates.push(company);

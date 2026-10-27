@@ -26,6 +26,14 @@ The broad financial-coverage release was published as Sites version **13** on 27
 
 These artifacts preserve code/builds, not a complete production database backup. Restore code through the existing project and keep the account database and encryption secrets intact.
 
+The bilingual interface release is Sites version **14**. It adds no database migration and preserves the version-13 financial parser and data-access controls.
+
+- Saved version: `appgprj_6adfe53d05bc8191983062a369584a6a~appgver_198a98c074ec8191aaf3cba1e5e32ca9`
+- Published source: `5844cd74de40d06ae0e92d5edccdd193cbcbafb2`
+- Successful deployment: `appgdep_6ae05d95a8dc8191aeeaa8d1de7ed8fc`
+- Deployment archive: `outputs/finscope-bilingual-v14-final.tar.gz` (ignored by Git).
+- Preserve both prior rollback tags: `stable-2026-10-27` and `release-2026-10-27-coverage`. Language preferences use existing JSON storage and remain backward-compatible.
+
 Fetch the tag, then open it in a separate directory rather than resetting the current checkout:
 
 ```sh

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useI18n } from "@/components/i18n";
 import CompanyMark from "./company-mark";
 import "./fish-school.css";
 
@@ -51,6 +52,7 @@ const DEFAULT_COMPANIES: FishCompany[] = [
 function clamp(value: number, min: number, max: number) { return Math.max(min, Math.min(max, value)); }
 
 export default function FishSchool({ compact = false, companies, onCompanyClick }: FishSchoolProps) {
+  const {t}=useI18n();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const marksRef = useRef<(HTMLSpanElement | null)[]>([]);
@@ -492,11 +494,11 @@ export default function FishSchool({ compact = false, companies, onCompanyClick 
   return (
     <div ref={rootRef} className={`fish-school${compact ? " fish-school--compact" : ""}`}>
       <div className="fish-school__topline">
-        <span className="fish-school__eyebrow">A LITTLE MARKET OCEAN</span>
-        <span className="fish-school__live"><i />{identities.length} global companies</span>
+        <span className="fish-school__eyebrow">{t("A LITTLE MARKET OCEAN")}</span>
+        <span className="fish-school__live"><i />{t('{count} global companies',{count:identities.length})}</span>
       </div>
-      <div className="fish-school__orbital-label" aria-hidden="true"><span>Ideas in motion</span><strong>stay curious.</strong></div>
-      <canvas ref={canvasRef} className="fish-school__canvas" role="button" tabIndex={0} aria-label="Interactive company fish. Click the water or press Space to feed. This illustrative school is not a live market-cap ranking." />
+      <div className="fish-school__orbital-label" aria-hidden="true"><span>{t("Ideas in motion")}</span><strong>{t("stay curious.")}</strong></div>
+      <canvas ref={canvasRef} className="fish-school__canvas" role="button" tabIndex={0} aria-label={t("Interactive company fish. Click the water or press Space to feed. This illustrative school is not a live market-cap ranking.")} />
       <div className="fish-school__marks" aria-hidden="true">
         {identities.map((company, index) => <span key={company.symbol} ref={(element) => { marksRef.current[index] = element; }} className="fish-school__mark" style={{ "--fish-size": "40px" } as CSSProperties}>
           <CompanyMark symbol={company.symbol} mark={company.mark} color={company.color} size={18} />
@@ -504,10 +506,10 @@ export default function FishSchool({ compact = false, companies, onCompanyClick 
       </div>
       {tooltip && <div className="fish-school__tooltip" style={{ left: tooltip.x, top: tooltip.y }}>{tooltip.company.nameEn || tooltip.company.name}<strong>{tooltip.company.symbol}</strong></div>}
       <div className="fish-school__footer">
-        <span className="fish-school__hint"><svg width="14" height="16" viewBox="0 0 14 16" fill="none" aria-hidden="true"><path d="m3 2 8 7-4 .5L5 13 3 2Z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" /><path d="m9 2 1-1m1 4h2M6 1V0" stroke="currentColor" strokeLinecap="round" /></svg>{compact ? "A little curiosity goes a long way." : "Click the water. Follow your curiosity."}</span>
-        <button type="button" className="fish-school__feed" onClick={() => feedRef.current()} aria-label="Feed the company fish"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 3.5c4 0 7 4.5 7 4.5s-3 4.5-7 4.5c-1 0-2-.6-2.8-1.3L1 12V4l2.2.8C4 4.1 5 3.5 6 3.5Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" /><circle cx="9.5" cy="7" r=".8" fill="currentColor" /></svg>Feed the fish</button>
+        <span className="fish-school__hint"><svg width="14" height="16" viewBox="0 0 14 16" fill="none" aria-hidden="true"><path d="m3 2 8 7-4 .5L5 13 3 2Z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" /><path d="m9 2 1-1m1 4h2M6 1V0" stroke="currentColor" strokeLinecap="round" /></svg>{t(compact ? "A little curiosity goes a long way." : "Click the water. Follow your curiosity.")}</span>
+        <button type="button" className="fish-school__feed" onClick={() => feedRef.current()} aria-label={t("Feed the company fish")}><svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 3.5c4 0 7 4.5 7 4.5s-3 4.5-7 4.5c-1 0-2-.6-2.8-1.3L1 12V4l2.2.8C4 4.1 5 3.5 6 3.5Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" /><circle cx="9.5" cy="7" r=".8" fill="currentColor" /></svg>{t("Feed the fish")}</button>
       </div>
-      <span role="status" aria-live="polite" className="fish-school__sr-only">{feedCount > 0 ? `Food added ${feedCount} ${feedCount === 1 ? "time" : "times"}. Nearby fish have been fed.` : ""}</span>
+      <span role="status" aria-live="polite" className="fish-school__sr-only">{feedCount > 0 ? t(feedCount===1?'Food added once. Nearby fish have been fed.':'Food added {count} times. Nearby fish have been fed.',{count:feedCount}) : ""}</span>
     </div>
   );
 }

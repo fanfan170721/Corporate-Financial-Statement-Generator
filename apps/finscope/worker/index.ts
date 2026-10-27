@@ -28,6 +28,15 @@ const worker = {
     secured.headers.set('X-Content-Type-Options', 'nosniff');
     secured.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
     secured.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    const contentType=secured.headers.get('Content-Type')||'';
+    if(contentType.includes('text/html')||contentType.includes('text/x-component')) {
+      // Documents carry the viewer's session, locale and theme. Only hashed static
+      // assets may be cached across deployments or visitors.
+      secured.headers.set('Cache-Control','private, no-store, max-age=0');
+      const vary=new Set((secured.headers.get('Vary')||'').split(',').map(value=>value.trim()).filter(Boolean));
+      vary.add('Cookie');
+      secured.headers.set('Vary',[...vary].join(', '));
+    }
     return secured;
   },
 };
