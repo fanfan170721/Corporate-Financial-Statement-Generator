@@ -177,9 +177,26 @@ export default function FishSchool({ compact = false, companies, onCompanyClick 
       for (const food of foods) {
         const fade = Math.min(1, (14 - food.age) * 2);
         context.globalAlpha = Math.max(0, fade);
-        context.fillStyle = dark ? "rgba(145, 126, 82, .86)" : "rgba(205, 184, 132, .86)";
+        const radius = 2.7 + Math.sin(food.age * 3 + food.drift) * .5;
+        // A light-catching golden grain: translucent edge, warm centre, tiny specular glint.
+        const glow = context.createRadialGradient(food.x, food.y, radius * .4, food.x, food.y, radius * 1.9);
+        glow.addColorStop(0, dark ? "rgba(248, 212, 104, .13)" : "rgba(255, 221, 119, .18)");
+        glow.addColorStop(1, "rgba(255, 221, 119, 0)");
+        context.fillStyle = glow;
         context.beginPath();
-        context.arc(food.x, food.y, 2.7 + Math.sin(food.age * 3 + food.drift) * .5, 0, Math.PI * 2);
+        context.arc(food.x, food.y, radius * 1.9, 0, Math.PI * 2);
+        context.fill();
+        const gold = context.createRadialGradient(food.x - radius * .3, food.y - radius * .35, 0, food.x, food.y, radius);
+        gold.addColorStop(0, dark ? "rgba(255, 239, 175, .88)" : "rgba(255, 248, 210, .96)");
+        gold.addColorStop(.42, dark ? "rgba(244, 207, 105, .80)" : "rgba(255, 224, 133, .90)");
+        gold.addColorStop(1, dark ? "rgba(220, 176, 66, .54)" : "rgba(244, 200, 87, .64)");
+        context.fillStyle = gold;
+        context.beginPath();
+        context.arc(food.x, food.y, radius, 0, Math.PI * 2);
+        context.fill();
+        context.fillStyle = dark ? "rgba(255, 246, 207, .48)" : "rgba(255, 255, 237, .78)";
+        context.beginPath();
+        context.ellipse(food.x - radius * .28, food.y - radius * .32, radius * .3, radius * .18, -.65, 0, Math.PI * 2);
         context.fill();
         context.globalAlpha = 1;
       }
