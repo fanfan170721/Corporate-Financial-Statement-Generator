@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/app-link";
 import { Check, Cloud, LoaderCircle, Plus, RefreshCw, Save, Trash2, X } from "lucide-react";
 import { api, useApp } from "./shell";
 import "./research-scenarios.css";

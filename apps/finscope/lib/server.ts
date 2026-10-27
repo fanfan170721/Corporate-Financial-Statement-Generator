@@ -1,15 +1,19 @@
 import { env } from "cloudflare:workers";
 import { z } from "zod";
-import { getChatGPTUser, type ChatGPTUser } from "@/app/chatgpt-auth";
+import { getUser, type AuthUser } from "@/lib/auth";
 import { generateReport, getDemoReport, searchCompanies } from "@/lib/market";
-import { generateAIAnalysis } from "@/lib/ai";
+import { aiStatus, generateMeteredAnalysis } from "@/lib/ai-access";
 import { getCaseStudy } from "@/lib/case-studies";
 import type { Preferences, Report, Schedule, Viewer } from "@/lib/types";
 
 export const DAILY_LIMIT = 18;
 export const CONCURRENT_LIMIT = 3;
+export function isAdmin(user: AuthUser | null): boolean {
+  if (!user?.emailVerified) return false;
+  return Boolean((env.ADMIN_USER_ID && user.userId === env.ADMIN_USER_ID) || (env.ADMIN_EMAIL && user.email.toLowerCase() === env.ADMIN_EMAIL.trim().toLowerCase()));
+}
 const LEASE_MS = 10 * 60_000;
-const DEFAULT_PREFERENCES: Preferences = { theme: "light", interests: [], defaultMode: "demo", reducedMotion: false };
+const DEFAULT_PREFERENCES: Preferences = { theme: "light", interests: [], defaultMode: "live", reducedMotion: false };
 const DEFAULT_SCHEDULE: Schedule = { symbols: [], time: "08:00", timezone: "America/Toronto", enabled: false, lastRun: null };
 const symbolSchema = z.string().trim().min(1).max(20).regex(/^[A-Za-z0-9.^-]+$/).transform((value) => value.toUpperCase());
 const symbolsSchema = z.array(symbolSchema).max(3).refine((items) => new Set(items).size === items.length, "Choose each company only once.");
@@ -20,11 +24,11 @@ const preferencesSchema = z.object({
   reducedMotion: z.boolean().optional(),
 }).strict();
 
-class ApiError extends Error {
+export class ApiError extends Error {
   constructor(readonly status: number, readonly code: string, message: string) { super(message); }
 }
 
-function database(): D1Database {
+export function database(): D1Database {
   if (!env.DB) throw new ApiError(503, "DATABASE_UNAVAILABLE", "Account storage is temporarily unavailable. Please try again shortly.");
   return env.DB;
 }
@@ -34,11 +38,13 @@ function providerEnv(): Record<string, string | undefined> {
 }
 
 export function capabilities(): Viewer["capabilities"] {
-  const liveData = Boolean(env.SEC_USER_AGENT?.trim() || env.FMP_API_KEY?.trim());
-  return { liveData, ai: Boolean(env.OPENAI_API_KEY?.trim()), scheduler: env.SCHEDULER_ENABLED === "true" && Boolean(env.CRON_SECRET && env.CRON_SECRET.length >= 32) && liveData };
+  const broadCoverage = Boolean((env.SEC_USER_AGENT && /[^\s@]+@[^\s@]+\.[^\s@]+/.test(env.SEC_USER_AGENT)) || env.FMP_API_KEY?.trim());
+  const directIssuers = ["MSFT"];
+  const liveData = directIssuers.length > 0 || broadCoverage;
+  return { liveData, broadCoverage, directIssuers, ai: Boolean(env.OPENAI_API_KEY?.trim()), scheduler: env.SCHEDULER_ENABLED === "true" && Boolean(env.CRON_SECRET && env.CRON_SECRET.length >= 32) && liveData };
 }
 
-function json(value: unknown, status = 200): Response {
+export function json(value: unknown, status = 200): Response {
   return Response.json(value, { status, headers: { "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" } });
 }
 
@@ -49,7 +55,14 @@ export async function apiHandler(work: () => Promise<Response>): Promise<Respons
     if (error instanceof z.ZodError) return json({ error: "Please check the highlighted fields and try again.", code: "INVALID_INPUT", fields: error.issues.map((issue) => issue.path.join(".")) }, 400);
     if (error instanceof Error && error.name === "MarketDataError" && "code" in error) {
       const safeMessages: Record<string, string> = {
-        NO_DATA: "Complete annual financials are unavailable for this company. Try another issuer or explore the illustrative dataset.",
+        NO_DATA: "Comparable annual financials are unavailable for this company. Check the data provider or select another issuer. No substitute figures were generated.",
+        DATA_COVERAGE_UNAVAILABLE: "Direct financial-statement retrieval supports Microsoft (MSFT). Other issuers require configured SEC access or a financial-data provider.",
+        ISSUER_UNAVAILABLE: "Microsoft's official financial statements could not be retrieved. Please retry shortly. No older or synthetic figures were substituted.",
+        ISSUER_FORMAT_CHANGED: "The issuer changed its published statement format. Extraction stopped to avoid reporting incorrect financial figures.",
+        ISSUER_INCOMPLETE: "The official statements did not provide the required five-year financial comparison. No estimated values were inserted.",
+        ISSUER_RECONCILIATION: "The retrieved balance sheet did not reconcile. Report generation stopped so the source can be checked.",
+        PROVIDER_UNAVAILABLE: "The financial-data provider is unavailable. Please retry shortly. No substitute financial figures were generated.",
+        SERVER_ONLY: "Financial retrieval could not run in the server environment. Please contact the workspace administrator.",
         UNKNOWN_SYMBOL: "Company not found. Search again and check the exchange and ticker.",
         INVALID_SYMBOL: "The ticker is invalid. Please select a company from search.",
         INVALID_CURRENCY: "The reporting currency could not be verified. No report has been generated.",
@@ -71,7 +84,7 @@ export function assertSameOrigin(request: Request): void {
   }
 }
 
-async function body<T extends z.ZodTypeAny>(request: Request, schema: T): Promise<z.infer<T>> {
+export async function body<T extends z.ZodTypeAny>(request: Request, schema: T): Promise<z.infer<T>> {
   if (!request.headers.get("Content-Type")?.toLowerCase().includes("application/json")) throw new ApiError(415, "JSON_REQUIRED", "This endpoint requires a JSON request.");
   const declaredLength = Number(request.headers.get("Content-Length") || 0);
   if (declaredLength > 16_384) throw new ApiError(413, "BODY_TOO_LARGE", "This submission is too large. Please shorten the content.");
@@ -97,14 +110,14 @@ async function body<T extends z.ZodTypeAny>(request: Request, schema: T): Promis
   return schema.parse(parsed);
 }
 
-async function ensureProfile(user: ChatGPTUser): Promise<void> {
+async function ensureProfile(user: AuthUser): Promise<void> {
   const now = new Date().toISOString();
   await database().prepare(`INSERT INTO profiles (user_id,name,email,preferences,created_at,updated_at) VALUES (?,?,?,?,?,?)
     ON CONFLICT(user_id) DO UPDATE SET name=excluded.name,email=excluded.email`).bind(user.userId, user.displayName, user.email, JSON.stringify(DEFAULT_PREFERENCES), now, now).run();
 }
 
-async function requireUser(): Promise<ChatGPTUser> {
-  const user = await getChatGPTUser();
+export async function requireUser(): Promise<AuthUser> {
+  const user = await getUser();
   if (!user) throw new ApiError(401, "SIGN_IN_REQUIRED", "Sign in to generate reports and save your research.");
   await ensureProfile(user);
   return user;
@@ -137,12 +150,13 @@ export async function getUsage(userId: string, now = new Date()): Promise<Viewer
 }
 
 export async function getViewer(): Promise<Viewer> {
-  const user = await getChatGPTUser();
-  const common = { capabilities: capabilities(), isAdmin: Boolean(user && env.ADMIN_USER_ID && user.userId === env.ADMIN_USER_ID) };
+  const user = await getUser();
+  const common = { capabilities: capabilities(), isAdmin: isAdmin(user) };
   if (!user) return { ...common, user: null, preferences: { ...DEFAULT_PREFERENCES }, favorites: [], schedule: { ...DEFAULT_SCHEDULE }, usage: { used: 0, active: 0, limit: DAILY_LIMIT } };
   await ensureProfile(user);
   const [preferences, favorites, schedule, usage] = await Promise.all([getPreferences(user.userId), getFavorites(user.userId), getSchedule(user.userId), getUsage(user.userId)]);
-  return { ...common, user: { id: user.userId, name: user.displayName, email: user.email }, preferences, favorites, schedule, usage };
+  const access = await aiStatus(user.userId);
+  return { ...common, capabilities: { ...common.capabilities, ai: access.canUse }, user: { id: user.userId, name: user.displayName, email: user.email }, preferences, favorites, schedule, usage };
 }
 
 export function handleMe(): Promise<Response> { return apiHandler(async () => json(await getViewer())); }
@@ -202,22 +216,27 @@ async function recordActivity(userId: string, action: string, symbols: string[])
 
 async function createReports(userId: string, symbols: string[], mode: "demo" | "live", ai: boolean): Promise<Report[]> {
   const available = capabilities();
-  if (mode === "live" && !available.liveData) throw new ApiError(503, "LIVE_DATA_UNAVAILABLE", "Live financial data is not configured yet. You can explore the illustrative dataset.");
-  if (ai && !available.ai) throw new ApiError(503, "AI_UNAVAILABLE", "AI research is not configured yet. Please contact the site administrator.");
+  if (mode === "live" && !available.broadCoverage && symbols.some((symbol) => !available.directIssuers?.includes(symbol))) throw new ApiError(503, "DATA_COVERAGE_UNAVAILABLE", "Direct financial-statement retrieval currently supports Microsoft (MSFT). Other companies require a configured SEC or financial-data provider. No synthetic figures will be substituted.");
+  if (ai && !(await aiStatus(userId)).canUse) throw new ApiError(403, "AI_ACCESS_REQUIRED", "Add an API key or activate a 24-hour pass in AI access first.");
   if (ai && mode === "demo") throw new ApiError(400, "AI_REQUIRES_LIVE_DATA", "AI research requires verified public financials. Generate a live-data report first.");
   const lease = await claimJob(userId, symbols.length, symbols.length * (ai ? 2 : 1), ai ? "report_ai" : "report");
   try {
     const settled = await Promise.allSettled(symbols.map(async (symbol) => {
       const base = mode === "demo" ? getDemoReport(symbol) : await generateReport(symbol, { allowDemoFallback: false, env: providerEnv() });
       const report: Report = { ...base, id: crypto.randomUUID(), generatedAt: new Date().toISOString() };
-      if (ai) report.ai = await generateAIAnalysis(report, { env: providerEnv() });
       return report;
     }));
     // Await every provider before releasing the shared lease, including on partial failures.
     const failure = settled.find((result) => result.status === "rejected");
     if (failure?.status === "rejected") throw failure.reason;
     const generated = settled.map((result) => (result as PromiseFulfilledResult<Report>).value);
+    // Save financial evidence first. An optional AI failure must never discard usable statements.
     await database().batch(generated.map((report) => database().prepare("INSERT INTO reports (id,user_id,symbol,mode,payload,created_at) VALUES (?,?,?,?,?,?)").bind(report.id, userId, report.symbol, report.mode, JSON.stringify(report), report.generatedAt)));
+    if (ai) for (const report of generated) {
+      try { report.ai = await generateMeteredAnalysis(userId, report); }
+      catch (error) { report.ai = { status: "unavailable", summary: error instanceof ApiError ? error.message : "AI analysis could not be completed. Your financial report has been saved.", insights: [], sources: [] }; }
+      await database().prepare("UPDATE reports SET payload=? WHERE user_id=? AND id=?").bind(JSON.stringify(report), userId, report.id).run();
+    }
     await recordActivity(userId, "research", symbols);
     return generated;
   } finally { await releaseJob(userId, lease); }
@@ -278,11 +297,10 @@ export function handleReportAI(request: Request, id: string): Promise<Response> 
     assertSameOrigin(request);
     const user = await requireUser();
     const report = await ownedReport(user.userId, id);
-    if (!capabilities().ai) throw new ApiError(503, "AI_UNAVAILABLE", "AI research is not configured yet. Please contact the site administrator.");
     if (report.mode !== "live") throw new ApiError(400, "AI_REQUIRES_LIVE_DATA", "AI research requires verified public financials. Generate a live-data report first.");
     const lease = await claimJob(user.userId, 1, 1, "ai");
     try {
-      const updated = { ...report, ai: await generateAIAnalysis(report, { env: providerEnv() }) };
+      const updated = { ...report, ai: await generateMeteredAnalysis(user.userId, report) };
       await database().prepare("UPDATE reports SET payload=? WHERE user_id=? AND id=?").bind(JSON.stringify(updated), user.userId, id).run();
       await recordActivity(user.userId, "ai_analysis", [report.symbol]);
       return json({ report: updated });
@@ -293,7 +311,7 @@ export function handleReportAI(request: Request, id: string): Promise<Response> 
 export function handleCompanies(request: Request): Promise<Response> {
   return apiHandler(async () => {
     const query = z.string().max(80).parse(new URL(request.url).searchParams.get("q") || "");
-    const user = await getChatGPTUser();
+    const user = await getUser();
     const live = capabilities().liveData && Boolean(user);
     if (live && user && query.trim()) {
       await ensureProfile(user);
@@ -380,7 +398,7 @@ export function handleDailyJob(request: Request): Promise<Response> {
 export function handleAdmin(): Promise<Response> {
   return apiHandler(async () => {
     const user = await requireUser();
-    if (!env.ADMIN_USER_ID || env.ADMIN_USER_ID !== user.userId) throw new ApiError(403, "ADMIN_REQUIRED", "This page is restricted to the site administrator.");
+    if (!isAdmin(user)) throw new ApiError(403, "ADMIN_REQUIRED", "This page is restricted to the site administrator.");
     const row = await database().prepare(`SELECT (SELECT COUNT(*) FROM profiles) AS users,(SELECT COUNT(*) FROM reports) AS reports,
       (SELECT COUNT(*) FROM schedules WHERE enabled=1) AS schedules,(SELECT COUNT(*) FROM report_jobs WHERE state='active' AND expires_at>?) AS activeJobs,
       (SELECT COUNT(*) FROM schedule_runs WHERE state='failed') AS failedScheduledRuns`).bind(Date.now()).first();

@@ -1,26 +1,53 @@
 # Finscope operations
 
-Finscope is a research portfolio application hosted through Sites, with a Cloudflare Worker and a D1 database. It persists account preferences, watchlists, financial reports, investment memos, diligence reviews saved as memos, allocation and liquidity scenarios, and schedule settings. It does not promise investment outcomes or real-time financial statements.
+Finscope is a financial analysis and planning application hosted through Sites, with a Cloudflare Worker and a D1 database. It persists account preferences, watchlists, financial reports, notes, manager reviews, allocation and liquidity scenarios, and schedule settings. It does not promise investment outcomes or real-time financial statements.
 
 ## Current readiness
 
 The repository includes an illustrative dataset and a sourced Microsoft FY2021–FY2025 case. The published case is a frozen annual-report snapshot through **30 June 2025**. Saving it changes the archive timestamp; it does not refresh the figures. The server copies only its own curated evidence and preserves the source note and financial reporting date.
 
-Live financial retrieval, OpenAI analysis, and scheduled generation require server configuration. No provider credentials or active scheduling service are supplied in this repository. A configured flag indicates required environment values exist, not that an external provider or scheduler has passed a health check.
+The Microsoft direct adapter discovers and retrieves published financial statements without a provider key. Broader issuer coverage, OpenAI analysis, and scheduled generation need additional configuration. No provider credentials or active scheduling service are supplied in this repository. A configured flag indicates required environment values exist, not that an external service has passed a health check.
 
-## Identity and hosting boundary
+## Email accounts and hosting access
 
-The current sign-in method is **Sign in with ChatGPT (SIWC)**. Sites dispatch owns sign-in, sign-out, OAuth cookies, and verified identity headers. Finscope uses `oai-authenticated-user-id` as its stable per-Site account key; names and emails are display fields. Cross-device continuity comes from that identity and D1 records.
+Application accounts now use **email and password with email verification**. Registration creates an account only after the six-digit code is verified. An ordinary application session never falls back to ChatGPT identity headers. Existing private Sites hosting can still require an outer platform sign-in before a visitor reaches the app; changing that hosting access policy is separate from application authentication.
 
-**Keep the application behind Sites dispatch.** The identity helper trusts headers injected by that gateway. Exposing the raw Worker without an equivalent verified identity boundary would allow forged identity headers. A standalone deployment or independent email/password registration requires a separately implemented authentication service, verified sessions, and removal of this header-trust assumption. A custom domain alone does not implement those changes.
+Passwords require 12–128 characters. The server uses WebCrypto PBKDF2-SHA256 with 100,000 iterations, a random salt, and an HMAC pepper held in AUTH_SECRET. This work factor respects the current Workers default cap; [Cloudflare's proposed cap increase](https://github.com/cloudflare/workerd/pull/7550) remains open. The versioned hash format permits a future KDF upgrade. This is a platform constraint, not a claim to meet the higher PBKDF2 work factor recommended for unconstrained servers.
 
-SIWC establishes identity, not employer or workspace membership. Use the hosting platform's access policy for private access. `/signin-with-chatgpt`, `/signout-with-chatgpt`, and `/callback` are reserved gateway paths. Start sign-in through a normal top-level link, never a background fetch.
+Verification/reset codes expire after ten minutes and allow at most five attempts. Codes are purpose-bound HMACs in the database; plaintext codes are sent only to the mail provider. Resends have a 60-second cooldown. Server limits also constrain attempts by hashed email/IP buckets and global mail volume. Registration and recovery responses do not disclose whether the address already has an account.
 
-Portable loopback development has a separate simulated user, `local_seedy`. That simulation is excluded from production builds. Keep local previews bound to loopback.
+Production sessions use a 256-bit random token in a host-only, HttpOnly, Secure, SameSite=Lax cookie. Only the token hash is stored. Standard sessions expire after 24 hours and use a browser-session cookie; “remember me” lasts up to 30 days. Login rotates the current session. Logout revokes that token, logout-all revokes every device, and a password reset increments the account credential version and invalidates all sessions. The session list never returns session tokens.
+
+The application stores research against its verified account ID in D1, so the same account sees its saved data across devices. Unsaved drafts remain local. The `/api/auth/config` endpoint exposes readiness and password/code limits; `/api/me` exposes the current account and research preferences.
+
+### Connecting actual email delivery
+
+No domain or mail provider has been connected for this project yet. The full registration, verification, reset, and login implementation is present, but production registration/recovery cannot deliver mail until setup is complete. Missing configuration returns an explicit unavailable response; provider rejection never reports a successful send.
+
+1. Obtain a domain and connect a verified sending domain to Resend, including the DNS records it requests. Use a sender address on that domain.
+2. Set server-only RESEND_API_KEY and AUTH_EMAIL_FROM (for example, Finscope <accounts@your-domain.example>). Configure a securely generated AUTH_SECRET of at least 32 characters. Never place these values in client code, Git, chat, or logs.
+3. Keep local test flags disabled in the hosted environment. Configure ADMIN_EMAIL to the intended owner's address, then complete email verification for that account.
+4. Send an end-to-end registration email to an address you control. Test verification, logout/login, and password reset. Check spam placement and sender-domain status before inviting visitors.
+
+Mail is sent using Resend's HTTPS API with a unique idempotency key and a bounded timeout. The app waits for a successful provider acknowledgement, which confirms queue acceptance rather than inbox delivery. See [Resend's send-email API](https://resend.com/docs/api-reference/emails/send-email). There is no SMS, email-login link, or hidden production verification bypass.
+
+AUTH_SECRET is also the password pepper: retain it securely. Changing it without a migration makes existing passwords unverifiable and existing codes unusable. A planned rotation requires password recovery and session revocation; restore from secure configuration backup if it was lost. Do not casually regenerate it on every deployment.
+
+### Existing Sites account data
+
+The migration preserves legacy profiles and research. It never links accounts solely by an email match. While the app remains behind trusted Sites dispatch, an operator may temporarily enable AUTH_TRUST_SITES_IDENTITY=true. Registration then preserves the existing profile ID only if the currently verified gateway identity owns that profile, its email matches the registration address, and the new email code is successfully verified. After migration, disable the flag. Never enable this option on a standalone Worker where callers can forge gateway headers.
+
+Without that explicit trusted-linking option, new email accounts receive new IDs and legacy records remain intact. There is no automatic transfer from another user's account or from an unrelated Site.
+
+### Local end-to-end testing
+
+For loopback development only, set AUTH_ALLOW_LOCAL_HTTP=true and AUTH_EMAIL_TEST_MODE=true alongside AUTH_SECRET in ignored .dev.vars. Restart the dev server. Both flags plus a localhost/127.0.0.1/[::1] HTTP URL are required. The UI labels this “local test mode”; no email is sent. GET /api/auth/dev-outbox exposes at most 20 ephemeral test messages from the current Worker instance, expiring after ten minutes. The route returns 404 on hosted/non-loopback URLs or when either flag is disabled. No production code is returned through the API.
+
+This mode still exercises the normal verification, password hashing, D1 account creation, and session flow. It uses a distinct development cookie. The server's old simulated Sites identity is not an application login. Do not deploy local test flags or copy .dev.vars into a publication archive.
 
 ## Server configuration
 
-Local Worker values belong in **`apps/finscope/.dev.vars`**. This file and its variants are ignored by Git and must stay out of publication archives. Hosted values belong in the server-side secret/configuration mechanism. Do not put credentials in `NEXT_PUBLIC_*`, client components, browser storage, source files, or a web form. The admin page deliberately cannot display or edit secret values.
+Local Worker values belong in **`apps/finscope/.dev.vars`**. This file and its variants are ignored by Git and must stay out of publication archives. Hosted values belong in the server-side secret/configuration mechanism. Do not put authentication or mail secrets in `NEXT_PUBLIC_*`, client components, browser storage, source files, or web forms. Secret values must never be echoed in status responses. The separate AI key management page accepts API keys over authenticated HTTPS and stores encrypted ciphertext; see [AI access](AI-ACCESS.md) for that vault.
 
 | Name | Purpose |
 | --- | --- |
@@ -29,7 +56,11 @@ Local Worker values belong in **`apps/finscope/.dev.vars`**. This file and its v
 | `OPENAI_MODEL` | Optional model override; the provider module defines the default. |
 | `SEC_USER_AGENT` | Identifying user agent with a real contact email for SEC retrieval. Coverage depends on available issuer filings. |
 | `FMP_API_KEY` | Optional server-only Financial Modeling Prep credential. Coverage and entitlements depend on the provider. |
-| `ADMIN_USER_ID` | Exact verified per-Site user ID allowed to read operational status; an identifier rather than an API credential. |
+| `ADMIN_USER_ID`, `ADMIN_EMAIL` | Exact application user ID or independently verified owner email allowed to read operational status. |
+| `AUTH_SECRET` | Stable random server-only password pepper and code-HMAC secret, at least 32 characters. |
+| `RESEND_API_KEY`, `AUTH_EMAIL_FROM` | Real email provider credential and verified sender. |
+| `AUTH_ALLOW_LOCAL_HTTP`, `AUTH_EMAIL_TEST_MODE` | Explicit loopback-only testing; false in hosted environments. |
+| `AUTH_TRUST_SITES_IDENTITY` | Temporary legacy-data linking behind trusted Sites dispatch only. |
 | `CRON_SECRET` | Random secret of at least 32 characters, shared only by the Worker and external schedule runner. |
 | `SCHEDULER_ENABLED` | Must equal `true` to allow enabled schedules; leave unset until the runner and data access work. |
 
@@ -37,7 +68,7 @@ The live provider path does not silently substitute illustrative figures. Missin
 
 ### Administrator access
 
-Sign in on the intended hosted Site and read your own `user.id` from `/api/me`. Set that exact value as the hosted `ADMIN_USER_ID`, then reload. Do not copy the local simulated identity into production. `/api/admin` checks the authenticated ID on every request and returns configuration status, aggregate counts, quotas, and server time. It returns no credential values or other users' research content.
+Set ADMIN_EMAIL to the intended owner’s address, then register and verify that email. Alternatively, sign in to the application and set its exact user.id from /api/me as ADMIN_USER_ID. Neither route accepts a role from a client request. Do not use the local simulated Sites identity. `/api/admin` checks the authenticated ID on every request and returns configuration status, aggregate counts, quotas, and server time. It returns no credential values or other users' research content.
 
 Secret confidentiality also depends on hosting-account security, deployment permissions, and secret storage. No system can guarantee that a key is impossible to compromise. Rotate exposed credentials and update the server environment; never commit the replacement.
 
@@ -81,6 +112,8 @@ This checkout's initial local preview database has already received:
 
 1. `0000_lonely_winter_soldier.sql` — account, report, schedule, quota, activity, and memo tables.
 2. `0001_mighty_post.sql` — persisted scenario plans.
+3. `0002_yellow_nightmare.sql` — verified accounts, codes, sessions, and rate-limit buckets.
+4. `0003_broken_master_mold.sql` — encrypted AI credentials, sponsored passes, and usage accounting.
 
 Do not replay those files against this local database. Local initialization did **not** apply production migrations. Sites publication applies checked-in production migrations separately; preserve ordering and follow the Sites workflow.
 
@@ -89,6 +122,8 @@ For a fresh local database, build once to create `dist/server/wrangler.json`, th
 ```sh
 node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0000_lonely_winter_soldier.sql
 node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0001_mighty_post.sql
+node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0002_yellow_nightmare.sql
+node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0003_broken_master_mold.sql
 ```
 
 Use `.wrangler/state`, not `.wrangler/state/v3`; Wrangler adds the version suffix. Development and built previews share this directory. Deleting it deletes the local database and simulated user's work. `.sites-runtime/local-db.json`, if present, is an ignored initialization helper rather than production configuration.
@@ -99,4 +134,4 @@ All account reads and writes are scoped to verified user IDs. Reports preserve t
 
 Run `npm test`, `npm run typecheck`, `npm run lint`, and `npm run build` from `apps/finscope` before release. Backend tests execute migration SQL in SQLite and exercise tenant isolation, concurrent admission, quota boundaries, CSRF, input bounds, schedule dates, and private curated-case saving.
 
-For research failures, distinguish missing configuration from provider failure or an exhausted allowance. Check redacted status and runner counts. Errors omit raw provider URLs because they can contain credentials. For database failures, verify the `DB` binding and migration state. For account-continuity problems, verify the same deployed Site and user ID are being used; IDs are not interchangeable across unrelated Sites.
+For research failures, distinguish missing configuration from provider failure or an exhausted allowance. Check redacted status and runner counts. Errors omit raw provider URLs because they can contain credentials. For database failures, verify the `DB` binding and migration state. For account-continuity problems, verify the same deployed Site and user ID are being used; existing legacy IDs are not interchangeable across unrelated Sites.

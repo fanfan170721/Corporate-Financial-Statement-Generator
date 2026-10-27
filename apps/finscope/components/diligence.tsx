@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
+
+import Link from "@/components/app-link";
 import { ArrowRight, ArrowUpRight, CheckCircle2, Circle, ClipboardCheck, FileText, Flag, LoaderCircle, Save, ShieldCheck, X } from "lucide-react";
 import { toast } from "sonner";
 import { api, useApp } from "@/components/shell";
@@ -46,7 +46,7 @@ function memoFromReview(review: Review) {
 
 export default function Diligence() {
   const { viewer } = useApp();
-  const router = useRouter();
+
   const [review, setReview] = useState<Review>(blankReview);
   const [baseline, setBaseline] = useState(() => JSON.stringify(blankReview()));
   const [savedId, setSavedId] = useState<string | null>(null);
@@ -83,13 +83,13 @@ export default function Diligence() {
       setPendingNavigation({ action: () => {
         window.removeEventListener("beforeunload", unload);
         const destination = new URL(link.href);
-        if (destination.origin === window.location.origin && !destination.pathname.startsWith("/signin-with-chatgpt")) router.push(`${destination.pathname}${destination.search}${destination.hash}`);
+        if (destination.origin === window.location.origin && !destination.pathname.startsWith("/signin-with-chatgpt")) window.location.assign(`${destination.pathname}${destination.search}${destination.hash}`);
         else window.location.assign(link.href);
       } });
     };
     window.addEventListener("beforeunload", unload); window.addEventListener("popstate", back, true); document.addEventListener("click", navigate, true);
     return () => { window.removeEventListener("beforeunload", unload); window.removeEventListener("popstate", back, true); document.removeEventListener("click", navigate, true); };
-  }, [dirty, router]);
+  }, [dirty]);
 
   const save = async () => {
     if (!viewer?.user) { toast.error("Sign in to save a due diligence review."); return; }

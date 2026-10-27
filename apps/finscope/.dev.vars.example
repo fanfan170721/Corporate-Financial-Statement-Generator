@@ -1,12 +1,25 @@
 # Copy only non-secret configuration as appropriate. Never commit .dev.vars.
 # Provision OPENAI_API_KEY through the secure OpenAI Developers flow.
 OPENAI_MODEL=gpt-6-astra
+# AES-256 credential-vault key: 64 random hexadecimal characters. Keep stable; never commit.
+CREDENTIAL_ENCRYPTION_KEY=
 # SEC_USER_AGENT must identify your application and a real contact email.
 SEC_USER_AGENT=
 # Optional licensed provider for broader issuer coverage.
 FMP_API_KEY=
-# Exact authenticated Site user ID; never a client-controlled role.
+# Exact verified application user ID, or verified owner email. Neither is client-controlled.
 ADMIN_USER_ID=
+ADMIN_EMAIL=
+# Account authentication. Generate a random secret >=32 characters; keep it stable and private.
+AUTH_SECRET=
+# Actual email delivery requires a Resend credential and a verified sending domain/address.
+RESEND_API_KEY=
+AUTH_EMAIL_FROM=
+# Explicit local-only QA flags. Never enable these in a hosted environment.
+AUTH_ALLOW_LOCAL_HTTP=false
+AUTH_EMAIL_TEST_MODE=false
+# Optional one-time legacy data linking ONLY while behind trusted Sites dispatch.
+AUTH_TRUST_SITES_IDENTITY=false
 # Enable only after a scheduler and financial provider are configured and tested.
 SCHEDULER_ENABLED=false
 CRON_SECRET=

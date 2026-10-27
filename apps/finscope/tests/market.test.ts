@@ -12,7 +12,8 @@ async function moduleUrl(name: string, dependencies: Record<string, string> = {}
   return `data:text/javascript;base64,${Buffer.from(source).toString("base64")}`;
 }
 const companiesUrl = await moduleUrl("companies");
-const marketUrl = await moduleUrl("market", { companies: companiesUrl });
+const issuerUrl = await moduleUrl("issuer-financials");
+const marketUrl = await moduleUrl("market", { companies: companiesUrl, "issuer-financials": issuerUrl });
 const aiUrl = await moduleUrl("ai", { market: marketUrl });
 const companies = await import(companiesUrl) as typeof import("../lib/companies");
 const market = await import(marketUrl) as typeof import("../lib/market");
@@ -103,7 +104,7 @@ test("demo fixtures are deterministic, explicitly synthetic, and never cite real
 
 test("provider failures never silently yield a live report", async () => {
   const env = { SEC_USER_AGENT: "", FMP_API_KEY: "" };
-  await assert.rejects(() => market.generateReport("NVDA", { env }), { code: "NO_DATA" });
+  await assert.rejects(() => market.generateReport("NVDA", { env }), { code: "DATA_COVERAGE_UNAVAILABLE" });
   const fallback = await market.generateReport("NVDA", { env, allowDemoFallback: true });
   assert.equal(fallback.mode, "demo");
   assert.match(fallback.note!, /Provider retrieval failed/);

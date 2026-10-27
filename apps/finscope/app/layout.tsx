@@ -3,8 +3,8 @@ import "./globals.css";
 import { AppShell } from '@/components/shell';
 
 export const metadata: Metadata = {
-  title: { default: 'Finscope — Investment research, built for the long view', template: '%s · Finscope' },
-  description: 'An institutional investment research workspace. Connect company fundamentals, asset–liability management, liquidity and independent judgement.',
+  title: { default: 'Finscope — Company analysis & financial planning', template: '%s · Finscope' },
+  description: 'Understand companies, compare financial performance and plan ahead. Keep financial reports, watchlists, cash-flow scenarios and your own notes together.',
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",

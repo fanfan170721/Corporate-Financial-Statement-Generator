@@ -1,4 +1,5 @@
 import { COMPANIES, getCompany, searchLocalCompanies } from "./companies";
+import { DIRECT_ISSUERS, IssuerDataError, retrieveIssuerFinancials } from "./issuer-financials";
 import type { Company, FinancialPeriod, Insight, Report, ReportMetrics, Source } from "./types";
 
 export { getCompany } from "./companies";
@@ -256,6 +257,13 @@ export async function generateReport(symbol: string, options: ServiceOptions & {
   if (!/^[A-Za-z0-9.^-]{1,20}$/.test(symbol)) throw new MarketDataError("INVALID_SYMBOL", "Invalid security symbol.");
   const company = await resolveCompany(symbol, options);
   try {
+    let issuerError: unknown;
+    if ((DIRECT_ISSUERS as readonly string[]).includes(company.symbol)) {
+      try {
+        const financials = await retrieveIssuerFinancials(company.symbol, options);
+        return { id: crypto.randomUUID(), symbol: company.symbol, company, generatedAt: new Date().toISOString(), mode: "live", dataKind: "provider", ...financials, metrics: calculateMetrics(financials.periods), insights: buildInsights(financials.periods) };
+      } catch (error) { issuerError = error; }
+    }
     let periods: FinancialPeriod[] = [];
     let dataAsOf = "";
     let currency = "USD";
@@ -283,6 +291,9 @@ export async function generateReport(symbol: string, options: ServiceOptions & {
     }
     if (!periods.length) {
       if (secError instanceof MarketDataError) throw secError;
+      if (issuerError instanceof IssuerDataError) throw new MarketDataError(issuerError.code, issuerError.message);
+      if (issuerError) throw new MarketDataError("ISSUER_UNAVAILABLE", "The official issuer report could not be retrieved. Please retry; no older or synthetic report was substituted.");
+      if (!environment("SEC_USER_AGENT", options) && !environment("FMP_API_KEY", options)) throw new MarketDataError("DATA_COVERAGE_UNAVAILABLE", "Direct financial-statement retrieval currently supports Microsoft (MSFT). This company requires the administrator to connect SEC access or a licensed financial-data provider. No synthetic report was generated.");
       throw new MarketDataError("NO_DATA", "No comparable annual financial data is available in a consistent currency. Check provider configuration.");
     }
     return { id: crypto.randomUUID(), symbol: company.symbol, company, generatedAt: new Date().toISOString(), dataAsOf, mode: "live", dataKind: "provider", currency, periods, metrics: calculateMetrics(periods), insights: buildInsights(periods), sources, note: `Amounts in millions of ${currency}. Latest available complete fiscal years, not live prices. Missing items remain null. Growth, net margin and ROE are percentages; cash coverage is cash divided by total liabilities.` };

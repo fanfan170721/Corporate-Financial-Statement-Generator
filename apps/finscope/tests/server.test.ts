@@ -9,7 +9,7 @@ import type { Report, Viewer } from "../lib/types";
 // Exercise the actual production SQL against SQLite, with only platform/provider
 // boundaries injected. In particular, quota tests do not mock SQL decisions.
 type Server = typeof import("../lib/server");
-type Identity = { userId: string; displayName: string; email: string; fullName: null } | null;
+type Identity = { userId: string; displayName: string; email: string; emailVerified: true } | null;
 const migrations = readdirSync(new URL("../drizzle/", import.meta.url)).filter((name) => name.endsWith(".sql")).sort();
 assert.ok(migrations.length, "Generate the D1 migration before running backend tests.");
 
@@ -32,20 +32,22 @@ async function fixture() {
     catch (error) { sql.exec("ROLLBACK"); throw error; }
   } };
   const runtimeEnv: Record<string, unknown> = { DB: db };
-  let user: Identity = { userId: "alice", displayName: "Alice", email: "alice@example.test", fullName: null };
+  let user: Identity = { userId: "alice", displayName: "Alice", email: "alice@example.test", emailVerified: true };
   let providerFails = false;
   const makeReport = (symbol: string, mode: "demo" | "live" = "demo"): Report => ({
     id: "provider-id", symbol, company: { symbol, name: symbol, nameEn: symbol, exchange: "NASDAQ", sector: "Technology", color: "#123456", mark: symbol[0] },
     generatedAt: new Date().toISOString(), dataAsOf: "2025-12-31", mode, currency: "USD", periods: [],
     metrics: { revenueGrowth: null, netMargin: null, freeCashFlow: null, debtToEquity: null, roe: null, cashRatio: null }, insights: [], sources: [],
+    ...(mode === "live" ? { provider:"Test issuer", retrievedAt:"2026-10-26T12:00:00.000Z", statements:[{kind:"income" as const,title:"Income statement",rows:[{key:"revenue",label:"Revenue",unit:"million-currency" as const,values:{"2025":100}}]}] } : {}),
   });
   const injected = {
     env: runtimeEnv, z,
-    getChatGPTUser: async () => user,
+    getUser: async () => user,
     getDemoReport: (symbol: string) => makeReport(symbol),
     generateReport: async (symbol: string) => { if (providerFails) throw new Error("secret-bearing-provider-url"); return makeReport(symbol, "live"); },
     searchCompanies: async () => [],
-    generateAIAnalysis: async () => ({ status: "ready", summary: "Test analysis", insights: [], sources: [] }),
+    generateMeteredAnalysis: async () => ({ status: "ready", summary: "Test analysis", insights: [], sources: [] }),
+    aiStatus: async () => ({ canUse: Boolean(runtimeEnv.OPENAI_API_KEY) }),
     getCaseStudy: (symbol: string) => symbol === "MSFT" ? { ...makeReport("MSFT", "live"), id: "case-MSFT", dataAsOf: "2025-06-30", note: "Frozen FY2025 annual-report figures." } : undefined,
   };
   const token = `fixture${crypto.randomUUID().replaceAll("-", "")}`;
@@ -53,12 +55,12 @@ async function fixture() {
   injectionStore[token] = injected;
   const source = readFileSync(new URL("../lib/server.ts", import.meta.url), "utf8").replace(/^import .*;\r?\n/gm, "");
   const compiled = stripTypeScriptTypes(source, { mode: "transform" });
-  const code = `const {env,z,getChatGPTUser,getDemoReport,generateReport,searchCompanies,generateAIAnalysis,getCaseStudy}=globalThis[${JSON.stringify(token)}];\n${compiled}`;
+  const code = `const {env,z,getUser,getDemoReport,generateReport,searchCompanies,generateMeteredAnalysis,aiStatus,getCaseStudy}=globalThis[${JSON.stringify(token)}];\n${compiled}`;
   const server = await import(`data:text/javascript;base64,${Buffer.from(code).toString("base64")}`) as Server;
   delete injectionStore[token];
   return {
     server, sql, env: runtimeEnv,
-    setUser: (id: string | null) => { user = id ? { userId: id, displayName: id, email: `${id}@example.test`, fullName: null } : null; },
+    setUser: (id: string | null) => { user = id ? { userId: id, displayName: id, email: `${id}@example.test`, emailVerified: true } : null; },
     failProvider: () => { providerFails = true; },
     close: () => sql.close(),
   };
@@ -86,6 +88,45 @@ test("cross-origin writes are rejected before creating account state", async () 
     const response = await f.server.handleFavorites(request("/api/favorites", "POST", { symbol: "AAPL" }, "https://attacker.test"));
     assert.equal(response.status, 403);
     assert.equal(f.sql.prepare("SELECT COUNT(*) AS n FROM profiles").get()!.n, 0);
+  } finally { f.close(); }
+});
+
+test("direct-issuer report generation preserves statement rows and provenance when reopened", async () => {
+  const f = await fixture();
+  try {
+    const capabilities = (await f.server.getViewer()).capabilities;
+    assert.equal(capabilities.liveData,true);
+    assert.equal(capabilities.broadCoverage,false);
+    assert.deepEqual(capabilities.directIssuers,["MSFT"]);
+    const response = await f.server.handleReports(request("/api/reports","POST",{symbols:["MSFT"],mode:"live"}));
+    assert.equal(response.status,201);
+    const created = (await response.json() as {reports:Report[]}).reports[0];
+    assert.notEqual(created.id,"provider-id");
+    const reopened = (await (await f.server.handleReport(created.id)).json() as {report:Report}).report;
+    assert.deepEqual(reopened,created);
+    assert.equal(reopened.statements![0].rows[0].values["2025"],100);
+    assert.equal(reopened.retrievedAt,"2026-10-26T12:00:00.000Z");
+    const archive = await (await f.server.handleReports(request("/api/reports"))).json() as {reports:Report[]};
+    assert.equal(archive.reports[0].id,created.id);
+    f.setUser("bob");
+    assert.equal((await f.server.handleReport(created.id)).status,404);
+  } finally { f.close(); }
+});
+
+test("unsupported live coverage fails before quota use and issuer errors remain safely informative", async () => {
+  const f = await fixture();
+  try {
+    const response=await f.server.handleReports(request("/api/reports","POST",{symbols:["AAPL"],mode:"live"}));
+    assert.equal(response.status,503);
+    assert.equal((await response.json() as {code:string}).code,"DATA_COVERAGE_UNAVAILABLE");
+    assert.equal((await f.server.getViewer()).usage.used,0);
+    assert.equal(f.sql.prepare("SELECT COUNT(*) AS n FROM reports").get()!.n,0);
+    const failure=await f.server.apiHandler(async()=>{throw Object.assign(new Error("secret-bearing-provider-url"),{name:"MarketDataError",code:"ISSUER_FORMAT_CHANGED"});});
+    const safe=await failure.json() as {code:string;error:string};
+    assert.equal(failure.status,422);
+    assert.equal(safe.code,"ISSUER_FORMAT_CHANGED");
+    assert.match(safe.error,/format/);
+    assert.ok(!safe.error.includes("secret-bearing"));
   } finally { f.close(); }
 });
 
@@ -316,7 +357,7 @@ test("scenario structures reject prototype keys, excessive depth, size, keys, an
 test("curated financial cases save server evidence privately without a live provider", async () => {
   const f = await fixture();
   try {
-    assert.equal((await f.server.getViewer()).capabilities.liveData, false);
+    assert.equal((await f.server.getViewer()).capabilities.broadCoverage, false);
     const result = await f.server.handleSaveCaseStudy(request("/api/case-studies/MSFT", "POST", { report: { note: "attacker evidence", userId: "bob" } }), "msft");
     assert.equal(result.status, 201);
     const { report } = await result.json() as { report: Report };

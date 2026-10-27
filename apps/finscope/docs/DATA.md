@@ -2,10 +2,21 @@
 
 ## Evidence and freshness
 
+- **Direct issuer reports:** Microsoft (MSFT) is available without a financial-data key. Each generation discovers the latest annual report listed by Microsoft and retrieves actual published statement pages. `dataAsOf` is the fiscal cutoff; `retrievedAt` is source retrieval time; `generatedAt` is when the account report was saved. No date is a claim of real-time pricing.
 - **Published case:** `case-MSFT` contains verified Microsoft FY2021–FY2025 consolidated financials, compiled on 26 October 2026 in Toronto. This is a frozen research snapshot, not a refreshed feed. The internal `mode: live` distinguishes published figures from synthetic fixtures; label this case **Published financials**, never live or refreshed.
 - **Provider reports:** the server retrieves the latest available complete annual disclosures. `generatedAt` records report creation; `dataAsOf` records fiscal year-end. Neither is a live market-price timestamp.
 - **Synthetic illustrations:** deterministic 2020–2024 fixtures always carry `mode: demo`, have no issuer-source claims and cannot invoke paid AI. They support interaction testing, not the featured research case.
 - Provider failures are explicit. Production uses `allowDemoFallback: false`. Only explicit service-layer opt-in returns an illustration with a failure explanation.
+
+## Direct Microsoft statements
+
+The server discovers reports from Microsoft's [annual-report index](https://www.microsoft.com/en-us/investor/annual-reports), accepting only HTTPS report links on `www.microsoft.com`. The newest listed report and reports two and four years earlier supply five annual periods, including two-year balance-sheet comparisons. Source pages are fetched at generation time, with a 15-minute index cache and one-hour annual-document cache. Concurrent requests are deduplicated. There is no bundled financial snapshot fallback.
+
+The extraction reads the issuer's consolidated income, balance-sheet and cash-flow tables, validates the expected financial year and units, and preserves reported signs and per-share/share-count units. A newer filing takes precedence for comparative figures. Five annual periods must have revenue, net income, operating cash flow, assets, liabilities and equity; assets must equal liabilities plus equity within USD 1 million of rounding. Unexpected markup, missing primary totals or a failed identity stops generation. Missing observations remain null. Changed wording may produce separate statement rows.
+
+A network validation on 26 October 2026 (America/Toronto) successfully retrieved the [FY2026](https://www.microsoft.com/investor/reports/ar26/index.html), [FY2024](https://www.microsoft.com/investor/reports/ar24/index.html) and [FY2022](https://www.microsoft.com/investor/reports/ar22/index.html) annual reports. It produced FY2022–FY2026, 55 populated core observations and 98 combined statement rows (20 income, 40 balance sheet, 38 cash flow). The latest fiscal cutoff was 30 June 2026. This is a validation record, not a hard-coded claim about future availability. Hosting-network access still requires deployment validation.
+
+The interface includes all extracted primary-statement rows, six financial charts, complete CSV export and all three statement tables in print/PDF. Original report links remain essential: the app does not reproduce full footnotes, comprehensive income, changes in equity or the auditor's opinion. Direct coverage is currently MSFT only. A configured provider is required for other companies; discovery-catalogue inclusion does not imply financial-data coverage.
 
 ## Microsoft case provenance
 
@@ -54,9 +65,11 @@ Allocation and liquidity inputs are hypothetical assumptions in CAD billions, un
 
 ## Server-side AI
 
-Keep `OPENAI_API_KEY` in the deployment secret manager. Select a Responses, web-search and structured-output capable model with `OPENAI_MODEL` (default `gpt-6-astra`). Credentials must never enter public environment variables, client forms, local storage, repositories or browser requests.
+An account can add a personal OpenAI API key or redeem a limited 24-hour sponsored access pass at `/ai-access`. Keys submitted through the authenticated form are sent over HTTPS and encrypted by the server; they are not retained in browser storage or returned by the settings endpoint. Keep `CREDENTIAL_ENCRYPTION_KEY` and any deployment-level `OPENAI_API_KEY` in the server secret manager. Never put credential values in public environment variables, source control or logs. See the operating guide for access controls, limits and key management.
 
-The service calls `POST https://api.openai.com/v1/responses` with `web_search`, source inclusion, strict JSON Schema and `store: false`. It sends public company financials, not user emails, watchlists or administrator credentials. Output is original English for institutional research, with at least five dimensions, conditions, counterarguments and observable milestones.
+Select a Responses, web-search and structured-output capable model with `OPENAI_MODEL` (default `gpt-6-astra`). A report must first be saved to the user's account; public case pages and synthetic examples cannot directly trigger AI requests.
+
+The service calls `POST https://api.openai.com/v1/responses` with `web_search`, source inclusion, strict JSON Schema and `store: false`. It sends public company financials, not user emails or watchlists. Output is original English for company analysis, with at least five dimensions, conditions, counterarguments and observable milestones.
 
 URLs must occur in supplied report sources or actual search/annotation evidence. Invented URLs are rejected; at least one verified web citation is required. Source links and numbers remain visible. Web content is evidence, never executable instructions. Missing configuration, quota failures, incomplete output and failed citation checks return `status: unavailable`; no canned text pretends AI ran.
 
@@ -64,4 +77,4 @@ API access, billing and quotas are separate from a ChatGPT subscription. Set pro
 
 ## Verification
 
-Run `node --experimental-strip-types --test tests/market.test.ts tests/liquidity.test.ts`. Tests cover multilingual/fuzzy discovery, fiscal joins, restatements, quarter exclusion, currency consistency, missing values, invalid denominators, honest demo labels, forbidden silent fallback, AI citation checks, published-case reconciliation, liquidity cash bridges and conserved commitments. No paid APIs are called. Deployment credentials and network connectivity require separate validation.
+Run `node --experimental-strip-types --test tests/market.test.ts tests/issuer-financials.test.ts tests/liquidity.test.ts tests/server.test.ts`. Tests cover multilingual/fuzzy discovery, fiscal joins, restatements, quarter exclusion, currency consistency, missing values, invalid denominators, issuer discovery, statement units/signs, reconciliation failures, full CSV exports and formula-safe source text, honest demo labels, forbidden silent fallback, AI citation checks, archive isolation, liquidity cash bridges and conserved commitments. Unit fixtures are invented test inputs, never user-visible company financials. No paid APIs are called. Deployment credentials and network connectivity require separate validation.

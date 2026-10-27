@@ -1,6 +1,6 @@
 "use client";
 import { useMemo, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/app-link";
 import { ArrowDownRight, ArrowRight, ArrowUpRight, Check, ChevronDown, Download, Droplets, Info, Printer, RotateCcw, Waves } from "lucide-react";
 import { Area, Bar, BarChart, CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { DEFAULT_LIQUIDITY, projectLiquidity, validateLiquidityConfig, type LiquidityConfig } from "@/lib/liquidity";

@@ -15,6 +15,20 @@
       "when": 1793059752302,
       "tag": "0001_mighty_post",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793064038112,
+      "tag": "0002_yellow_nightmare",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1793064335332,
+      "tag": "0003_broken_master_mold",
+      "breakpoints": true
     }
   ]
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+
 import { ArrowLeft, ArrowRight, ArrowUpRight, Check, CheckCircle2, ChevronRight, Clock3, Download, FileSearch, Library, LoaderCircle, NotebookPen, Plus, Printer, Save, Search, ShieldCheck, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import type { Memo, Viewer } from "@/lib/types";
@@ -39,7 +39,7 @@ async function api<T>(url: string, options?: RequestInit): Promise<T> {
 type Modal = { kind: "discard"; action: () => void } | { kind: "delete"; memo: Memo } | null;
 
 export default function MemoWorkbench() {
-  const router = useRouter();
+
   const [viewer, setViewer] = useState<Viewer | null>(null);
   const [memos, setMemos] = useState<Memo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -97,7 +97,7 @@ export default function MemoWorkbench() {
       setModal({ kind: "discard", action: () => {
         window.removeEventListener("beforeunload", beforeUnload);
         const destination = new URL(link.href);
-        if (destination.origin === window.location.origin && !/^\/(signin-with-chatgpt|signout-with-chatgpt|callback)/.test(destination.pathname)) router.push(`${destination.pathname}${destination.search}${destination.hash}`);
+        if (destination.origin === window.location.origin && !/^\/(signin-with-chatgpt|signout-with-chatgpt|callback)/.test(destination.pathname)) window.location.assign(`${destination.pathname}${destination.search}${destination.hash}`);
         else window.location.assign(link.href);
       } });
     };
@@ -105,7 +105,7 @@ export default function MemoWorkbench() {
     window.addEventListener("popstate", browserBack, true);
     document.addEventListener("click", navigation, true);
     return () => { window.removeEventListener("beforeunload", beforeUnload); window.removeEventListener("popstate", browserBack, true); document.removeEventListener("click", navigation, true); };
-  }, [dirty, draft, router]);
+  }, [dirty, draft]);
 
   const leaveEditor = () => { setEditing(false); setActive(null); setDraft({ ...EMPTY }); setBaseline(JSON.stringify(EMPTY)); window.history.replaceState(window.history.state, "", "/memos"); window.scrollTo({ top: 0, behavior: "smooth" }); };
   const guarded = (action: () => void) => { if (dirty) setModal({ kind: "discard", action }); else action(); };
@@ -170,7 +170,7 @@ export default function MemoWorkbench() {
       <div className="memo-editor-progress"><span>Sections documented <strong>{filled} / 6</strong></span><div>{SECTIONS.map(({ key, title }) => <span key={key} className={draft[key].trim() ? "filled" : ""} title={`${title}${draft[key].trim() ? ": documented" : ": not yet documented"}`} />)}</div><small>Documented does not mean verified</small></div>
       <div className="memo-editor-grid">{SECTIONS.map(({ key, title, en, prompt }, i) => <section className={`panel memo-field ${key === "disconfirming" ? "memo-field-rose" : ""}`} key={key}><div className="memo-field-heading"><span>0{i + 1}</span><div><label htmlFor={`memo-${key}`}>{title}</label><small>{en}</small></div>{key === "disconfirming" && <ShieldCheck size={18} />}</div><p>{prompt}</p><textarea id={`memo-${key}`} value={draft[key]} onChange={(event) => update(key, event.target.value)} placeholder="Write your analysis here…" maxLength={2000} rows={7} /><div className="memo-field-footer"><span>{key === "evidence" ? "Prioritize primary disclosures" : key === "disconfirming" ? "Actively seek contrary evidence" : "Separate facts, assumptions and inference"}</span><span>{draft[key].length} / 2000</span></div></section>)}</div>
       <div className="memo-editor-footer"><div><ShieldCheck size={15} /><span>Private to your account. Save to keep your changes.</span></div>{active && <button className="memo-delete-button" onClick={() => setModal({ kind: "delete", memo: active })}><Trash2 size={15} /> Delete memo</button>}</div>
-      <article className="memo-print-view"><div>FINSCOPE · INVESTMENT RESEARCH</div><h1>{draft.title}</h1><p>{draft.symbol ? `${draft.symbol} · ` : ""}{new Date().toLocaleDateString("en-CA")}{dirty ? " · Includes unsaved edits" : ""}</p>{SECTIONS.map(({ key, title }) => <section key={key}><h2>{title}</h2><p>{draft[key] || "Not yet documented"}</p></section>)}</article>
+      <article className="memo-print-view"><div>FINSCOPE · FINANCIAL NOTES</div><h1>{draft.title}</h1><p>{draft.symbol ? `${draft.symbol} · ` : ""}{new Date().toLocaleDateString("en-CA")}{dirty ? " · Includes unsaved edits" : ""}</p>{SECTIONS.map(({ key, title }) => <section key={key}><h2>{title}</h2><p>{draft[key] || "Not yet documented"}</p></section>)}</article>
     </>}
     <dialog ref={dialog} className="memo-dialog" aria-labelledby="memo-dialog-title" onCancel={(event) => { event.preventDefault(); if (!deleting) setModal(null); }} onClick={(event) => { if (event.target === event.currentTarget && !deleting) setModal(null); }}>
       {modal && <div><button className="memo-dialog-close" onClick={() => setModal(null)} disabled={deleting} aria-label="Close"><X size={18} /></button><span className="memo-dialog-icon">{modal.kind === "delete" ? <Trash2 size={23} /> : <NotebookPen size={23} />}</span><h2 id="memo-dialog-title">{modal.kind === "delete" ? "Delete this memo?" : "Your changes are not saved."}</h2><p>{modal.kind === "delete" ? `${modal.memo.title} will be permanently deleted. Export a copy first if you need to keep it.` : "Leaving now will discard your latest edits. Stay here to finish or save your work."}</p><div className="memo-dialog-actions"><button className="button" onClick={() => setModal(null)} disabled={deleting}>{modal.kind === "delete" ? "Keep memo" : "Keep editing"}</button><button className={`button ${modal.kind === "delete" ? "memo-danger" : "memo-primary"}`} disabled={deleting} onClick={() => { if (modal.kind === "delete") void deleteMemo(modal.memo); else { const action = modal.action; setModal(null); action(); } }}>{deleting ? "Deleting…" : modal.kind === "delete" ? "Delete permanently" : "Discard and leave"}</button></div></div>}
