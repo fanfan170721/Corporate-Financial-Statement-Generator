@@ -28,13 +28,17 @@ The local integration test on 26 October 2026 (America/New_York; `2026-10-27T02:
 
 OpenAI API billing is [separate from ChatGPT subscriptions](https://help.openai.com/en/articles/9039756-managing-billing-for-chatgpt-and-the-api-platform). Credits are a money balance, not a fixed token bundle; model input, output and web-search charges affect cost. Check the [API billing overview](https://platform.openai.com/settings/organization/billing/overview) after your test. No further purchase or automatic reload is needed just to follow these instructions.
 
-## 4. Give a guest access
+## 4. Guest mode and optional sponsored AI
+
+For financial reports without email or AI, visitors can select **Continue as guest** on the welcome screen. This opens an isolated 24-hour session with three report credits in the current browser. Guest reports can be reopened and exported; they are not automatically imported into an account. Guests cannot use AI, configure keys, redeem passes or schedule daily reports. This entry does not require a working email provider.
+
+### Sponsored AI for a registered visitor
 
 Verify real email delivery and the hosted account flow first. The intended visitor entry is the public website with application email login; this is separate from an AI pass. Check the actual hosting access policy before sharing the link, and do not restore an outer platform login unintentionally.
 
 In `/admin`, create a labelled pass with **one claim** for an individual guest. Copy the code immediately; it is shown once. The default allowance is 100,000 metered tokens and 5 AI requests for 24 hours starting when redeemed. Limits can be changed in the owner console. The token reservation caveat and provider costs are explained in `AI-ACCESS.md`.
 
-Give the guest the website URL and their pass code. They register, verify their email, open **AI access**, and redeem the code. Their financial reports and saved data belong to their own account. Revoking a pass prevents new sponsored AI calls. After expiry, other tools remain available; users may also connect their own API billing account.
+Give the visitor the website URL and their pass code. They register, verify their email, open **AI access**, and redeem the code. This uses a verified account, not the no-email guest session. Their financial reports and saved data belong to their own account. Revoking a pass prevents new sponsored AI calls. After expiry, other tools remain available; users may also connect their own API billing account.
 
 ## 5. Financial coverage and daily reports
 
@@ -44,4 +48,4 @@ Daily report schedules additionally require the external runner described in Ope
 
 ## 6. Maintenance
 
-Give future developers the GitHub repository and `docs/HANDOFF.md`. `CLAUDE.md` provides a direct starting point for Claude. Give deployment access through the hosting platform, never by committing credentials. Keep encrypted-vault and authentication secrets stable during updates.
+Give maintainers the GitHub repository, `MAINTENANCE.md` and `docs/HANDOFF.md`. Give deployment access through the hosting platform, never by committing credentials. Keep encrypted-vault and authentication secrets stable during updates.

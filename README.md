@@ -69,6 +69,6 @@ apps/finscope/
   docs/         Setup, architecture, data definitions and handoff
 ```
 
-The repository is the source of truth. Claude, Codex or a developer can clone it, run checks, change the source and submit ordinary Git commits. Generated runtime/publication files are ignored and not required to understand the application. Preserve the hosted project ID when updating this deployment.
+The repository is the source of truth. Developers can clone it, run checks, change the source and submit ordinary Git commits. Start with `MAINTENANCE.md`. Generated runtime/publication files are ignored and not required to understand the application. Preserve the hosted project ID when updating this deployment.
 
 Secrets belong in server environment settings or the encrypted credential vault, never source, browser storage or screenshots. Back up D1 and preserve encryption keys before moving hosts. The owner has registered `finscopehq.com`; website TLS and the `mail.finscopehq.com` sending domain are verified. See Operations for the distinction between provider configuration and tested email delivery.
