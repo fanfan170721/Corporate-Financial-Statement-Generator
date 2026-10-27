@@ -1,0 +1,26 @@
+name: Morning brief runner
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/15 * * * *'
+permissions:
+  contents: read
+concurrency:
+  group: morning-brief-runner
+  cancel-in-progress: false
+jobs:
+  run-due-briefs:
+    if: ${{ vars.ENABLE_MORNING_BRIEF == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Process due accounts when configured
+        env:
+          SITE_URL: ${{ secrets.SITE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          OAI_SITES_AUTHORIZATION: ${{ secrets.OAI_SITES_AUTHORIZATION }}
+        run: node apps/finscope/scripts/run-morning-brief.mjs

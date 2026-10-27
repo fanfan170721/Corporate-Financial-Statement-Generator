@@ -1,0 +1,12 @@
+# Copy only non-secret configuration as appropriate. Never commit .dev.vars.
+# Provision OPENAI_API_KEY through the secure OpenAI Developers flow.
+OPENAI_MODEL=gpt-6-astra
+# SEC_USER_AGENT must identify your application and a real contact email.
+SEC_USER_AGENT=
+# Optional licensed provider for broader issuer coverage.
+FMP_API_KEY=
+# Exact authenticated Site user ID; never a client-controlled role.
+ADMIN_USER_ID=
+# Enable only after a scheduler and financial provider are configured and tested.
+SCHEDULER_ENABLED=false
+CRON_SECRET=

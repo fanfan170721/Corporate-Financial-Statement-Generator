@@ -1,0 +1,11 @@
+export type Company = { symbol: string; name: string; nameEn: string; exchange: string; sector: string; color: string; mark: string; cik?: string };
+export type FinancialPeriod = { year: string; revenue: number | null; netIncome: number | null; operatingCashFlow: number | null; capex: number | null; assets: number | null; liabilities: number | null; cash: number | null; debt: number | null; grossProfit: number | null; operatingIncome: number | null; equity: number | null };
+export type Source = { label: string; url: string; asOf?: string };
+export type Insight = { title: string; stance: 'positive' | 'neutral' | 'caution'; summary: string; detail?: string };
+export type ReportMetrics = { revenueGrowth: number | null; netMargin: number | null; freeCashFlow: number | null; debtToEquity: number | null; roe: number | null; cashRatio: number | null };
+export type AIAnalysis = { status: 'ready' | 'unavailable'; generatedAt?: string; model?: string; summary: string; insights: Insight[]; sources: Source[] };
+export type Report = { dataKind?: 'filing-snapshot' | 'provider' | 'synthetic'; id: string; symbol: string; company: Company; generatedAt: string; dataAsOf: string; mode: 'live' | 'demo'; currency: string; periods: FinancialPeriod[]; metrics: ReportMetrics; insights: Insight[]; sources: Source[]; ai?: AIAnalysis; note?: string };
+export type Preferences = { theme: 'light' | 'dark' | 'system'; interests: string[]; defaultMode: 'live' | 'demo'; reducedMotion: boolean };
+export type Schedule = { symbols: string[]; time: string; timezone: string; enabled: boolean; lastRun?: string | null };
+export type Viewer = { user: {id: string; name: string; email: string} | null; preferences: Preferences; favorites: string[]; schedule: Schedule; usage: { used: number; limit: number; active: number }; capabilities: { liveData: boolean; ai: boolean; scheduler: boolean }; isAdmin: boolean };
+export type Memo = { id: string; title: string; symbol: string | null; thesis: string; catalysts: string; valuation: string; risks: string; disconfirming: string; evidence: string; createdAt: string; updatedAt: string };
