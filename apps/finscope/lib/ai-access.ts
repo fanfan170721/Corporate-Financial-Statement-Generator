@@ -20,7 +20,13 @@ export async function aiConfig(): Promise<Config> {
   return row ? configSchema.parse(JSON.parse(row.payload)) : { ...defaults };
 }
 async function savedKey(scope: string) { return database().prepare('SELECT ciphertext,suffix,updated_at FROM ai_credentials WHERE scope=?').bind(scope).first<KeyRow>(); }
-async function sponsorReady() { return Boolean(env.OPENAI_API_KEY || await savedKey(SPONSOR)); }
+export async function sponsorReady(): Promise<boolean> {
+  const saved = await savedKey(SPONSOR);
+  try {
+    const key = saved ? await openCredential(saved.ciphertext, SPONSOR, env.CREDENTIAL_ENCRYPTION_KEY || '') : env.OPENAI_API_KEY;
+    return keySchema.safeParse({ apiKey: key }).success;
+  } catch { return false; }
+}
 async function activeGrant(userId: string, now = Date.now()) {
   return database().prepare(`SELECT g.id,g.pass_id,g.expires_at,g.token_limit,g.request_limit FROM ai_grants g JOIN ai_passes p ON p.id=g.pass_id
     WHERE g.user_id=? AND g.expires_at>? AND p.revoked=0 ORDER BY g.expires_at DESC LIMIT 1`).bind(userId, now).first<Grant>();

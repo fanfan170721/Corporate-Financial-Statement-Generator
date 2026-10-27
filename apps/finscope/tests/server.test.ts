@@ -48,6 +48,7 @@ async function fixture() {
     searchCompanies: async () => [],
     generateMeteredAnalysis: async () => ({ status: "ready", summary: "Test analysis", insights: [], sources: [] }),
     aiStatus: async () => ({ canUse: Boolean(runtimeEnv.OPENAI_API_KEY) }),
+    sponsorReady: async () => Boolean(runtimeEnv.OPENAI_API_KEY),
     getCaseStudy: (symbol: string) => symbol === "MSFT" ? { ...makeReport("MSFT", "live"), id: "case-MSFT", dataAsOf: "2025-06-30", note: "Frozen FY2025 annual-report figures." } : undefined,
   };
   const token = `fixture${crypto.randomUUID().replaceAll("-", "")}`;
@@ -55,7 +56,7 @@ async function fixture() {
   injectionStore[token] = injected;
   const source = readFileSync(new URL("../lib/server.ts", import.meta.url), "utf8").replace(/^import .*;\r?\n/gm, "");
   const compiled = stripTypeScriptTypes(source, { mode: "transform" });
-  const code = `const {env,z,getUser,getDemoReport,generateReport,searchCompanies,generateMeteredAnalysis,aiStatus,getCaseStudy}=globalThis[${JSON.stringify(token)}];\n${compiled}`;
+  const code = `const {env,z,getUser,getDemoReport,generateReport,searchCompanies,generateMeteredAnalysis,aiStatus,sponsorReady,getCaseStudy}=globalThis[${JSON.stringify(token)}];\n${compiled}`;
   const server = await import(`data:text/javascript;base64,${Buffer.from(code).toString("base64")}`) as Server;
   delete injectionStore[token];
   return {

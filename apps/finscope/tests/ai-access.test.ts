@@ -6,7 +6,7 @@ import { DatabaseSync } from "node:sqlite";
 import { z } from "zod";
 import type { Report } from "../lib/types";
 
-type AI = typeof import("../lib/ai-access") & typeof import("../lib/credential-vault");
+type AI = typeof import("../lib/ai-access") & typeof import("../lib/credential-vault") & typeof import("../lib/server");
 type Provider = (report: Report, options: { env: { OPENAI_API_KEY?: string }; onUsage: (usage: { inputTokens: number; outputTokens: number }) => void }) => Promise<unknown>;
 const report = { symbol: "MSFT", mode: "live" } as Report;
 
@@ -72,6 +72,31 @@ test("AI keys require identity and Origin, stay encrypted, and are isolated by o
     await f.ai.handleAISettings(f.request("/api/ai/settings", "DELETE"));
     assert.equal(f.sql.prepare("SELECT COUNT(*) n FROM ai_credentials WHERE scope='alice'").get()!.n, 1);
     assert.equal((await f.ai.handleAdminAI(f.request("/api/admin/ai"))).status, 403);
+  } finally { f.close(); }
+});
+
+test("admin sponsor status reflects the readable vault key, including corruption and environment precedence", async () => {
+  const f = await fixture();
+  try {
+    delete f.env.OPENAI_API_KEY;
+    assert.equal(await f.ai.sponsorReady(), false);
+    const key = "sk-test-saved-sponsor-" + "a".repeat(32);
+    const ciphertext = await f.ai.sealCredential(key, "__site_sponsor__", String(f.env.CREDENTIAL_ENCRYPTION_KEY));
+    f.sql.prepare("INSERT INTO ai_credentials(scope,ciphertext,suffix,updated_at) VALUES (?,?,?,?)").run("__site_sponsor__", ciphertext, key.slice(-4), new Date().toISOString());
+    assert.equal(await f.ai.sponsorReady(), true);
+    const admin = await f.ai.handleAdmin();
+    assert.equal(admin.status, 200);
+    const body = await admin.json() as { services: { ai: string }; capabilities: { ai: boolean } };
+    assert.equal(body.services.ai, "configured");
+    assert.equal(body.capabilities.ai, true);
+    assert.ok(!JSON.stringify(body).includes(key));
+    f.env.OPENAI_API_KEY = "sk-test-environment-" + "b".repeat(32);
+    f.sql.prepare("UPDATE ai_credentials SET ciphertext='corrupt' WHERE scope='__site_sponsor__'").run();
+    assert.equal(await f.ai.sponsorReady(), false, "The actual execution path prefers a saved key; metadata must not hide a corrupt override.");
+    const invalid = await (await f.ai.handleAdmin()).json() as typeof body;
+    assert.equal(invalid.services.ai, "missing");
+    assert.equal(invalid.capabilities.ai, false);
+    assert.equal(f.calls(), 0);
   } finally { f.close(); }
 });
 

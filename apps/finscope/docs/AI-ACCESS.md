@@ -12,7 +12,9 @@ A personal key takes priority over a pass. The user's OpenAI account pays API co
 
 ## Sponsored passes
 
-The verified owner opens `/admin` and supplies a sponsored API key, or uses server `OPENAI_API_KEY`. Pass creation accepts a label, maximum claims and redemption deadline. The secret code is shown once; D1 retains its SHA-256 hash. It is not an OpenAI key.
+Before email delivery is configured, the owner can save the existing sponsored API key through `/owner/setup`. This narrowly scoped bootstrap requires both setup/trusted-identity flags and a trusted Sites gateway identity matching `ADMIN_EMAIL`; it does not create an application session or bypass email verification. See [Owner setup](GETTING-STARTED.md). Never expose this gate through an untrusted direct Worker origin.
+
+After registration and email verification, the owner manages sponsored keys and passes in `/admin`. A saved sponsored key takes precedence over server `OPENAI_API_KEY`. Saving a key makes no provider-validation or billable request. Pass creation accepts a label, maximum claims and redemption deadline. The secret code is shown once; D1 retains its SHA-256 hash. It is not an OpenAI key.
 
 Each claimant receives 24 hours beginning at successful redemption, tracked by server time across devices. An account cannot reuse a code or stack active passes. Revocation stops new requests, including existing grants; it cannot cancel provider work in flight. An atomic grant INSERT and SQL counter trigger enforce shared-code capacity.
 
@@ -27,3 +29,5 @@ Output is capped at 4,500 tokens and built-in tool calls at 2 per response. Pass
 ## Verification
 
 Tests cover expiry, reuse, revocation, capacity, ownership, encrypted scope, atomic reservations and usage settlement. Citations must match supplied evidence or actual web-search annotations. Financial data is saved before optional AI generation, so an AI outage does not erase a report.
+
+A real **local** integration run on 26 October 2026 (America/New_York; `2026-10-27T02:08:18Z`) used `gpt-6-astra` on the published Microsoft FY2022–FY2026 report and produced seven insights with five verified sources. The completed analysis was saved and reopened. Recorded provider usage was 22,226 input + 2,039 output = 24,265 tokens. This also demonstrates why the 20,000-token admission reservation is an estimate rather than a hard cap on the final call. The hosted deployment still needs its own end-to-end validation; neither saving a credential nor this local result confirms hosted provider connectivity or email delivery.

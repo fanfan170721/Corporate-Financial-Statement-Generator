@@ -2,7 +2,7 @@ import { env } from "cloudflare:workers";
 import { z } from "zod";
 import { getUser, type AuthUser } from "@/lib/auth";
 import { generateReport, getDemoReport, searchCompanies } from "@/lib/market";
-import { aiStatus, generateMeteredAnalysis } from "@/lib/ai-access";
+import { aiStatus, generateMeteredAnalysis, sponsorReady } from "@/lib/ai-access";
 import { getCaseStudy } from "@/lib/case-studies";
 import type { Preferences, Report, Schedule, Viewer } from "@/lib/types";
 
@@ -402,7 +402,8 @@ export function handleAdmin(): Promise<Response> {
     const row = await database().prepare(`SELECT (SELECT COUNT(*) FROM profiles) AS users,(SELECT COUNT(*) FROM reports) AS reports,
       (SELECT COUNT(*) FROM schedules WHERE enabled=1) AS schedules,(SELECT COUNT(*) FROM report_jobs WHERE state='active' AND expires_at>?) AS activeJobs,
       (SELECT COUNT(*) FROM schedule_runs WHERE state='failed') AS failedScheduledRuns`).bind(Date.now()).first();
-    return json({ counts: row, capabilities: capabilities(), services: { database: "connected", ai: env.OPENAI_API_KEY ? "configured" : "missing", market: capabilities().liveData ? "configured" : "missing", scheduler: capabilities().scheduler ? "enabled" : "disabled" }, limits: { daily: DAILY_LIMIT, concurrent: CONCURRENT_LIMIT }, serverTime: new Date().toISOString() });
+    const configuredAI = await sponsorReady();
+    return json({ counts: row, capabilities: { ...capabilities(), ai: configuredAI }, services: { database: "connected", ai: configuredAI ? "configured" : "missing", market: capabilities().liveData ? "configured" : "missing", scheduler: capabilities().scheduler ? "enabled" : "disabled" }, limits: { daily: DAILY_LIMIT, concurrent: CONCURRENT_LIMIT }, serverTime: new Date().toISOString() });
   });
 }
 

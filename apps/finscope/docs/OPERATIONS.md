@@ -8,6 +8,8 @@ The repository includes an illustrative dataset and a sourced Microsoft FY2021â€
 
 The Microsoft direct adapter discovers and retrieves published financial statements without a provider key. Broader issuer coverage, OpenAI analysis, and scheduled generation need additional configuration. No provider credentials or active scheduling service are supplied in this repository. A configured flag indicates required environment values exist, not that an external service has passed a health check.
 
+A real local AI integration test completed on **26 October 2026 (America/New_York)**, recorded at `2026-10-27T02:08:18Z`. It analysed Microsoft FY2022â€“FY2026 using `gpt-6-astra`, returned seven insights with five verified sources, and saved/reopened the completed report. Usage was 22,226 input + 2,039 output = 24,265 tokens. This validates the local path only. Hosted AI connectivity, real email delivery and the hosted account flow require separate verification; saving provider settings is not such a verification.
+
 ## Email accounts and hosting access
 
 Application accounts now use **email and password with email verification**. Registration creates an account only after the six-digit code is verified. An ordinary application session never falls back to ChatGPT identity headers. Existing private Sites hosting can still require an outer platform sign-in before a visitor reaches the app; changing that hosting access policy is separate from application authentication.
@@ -25,13 +27,25 @@ The application stores research against its verified account ID in D1, so the sa
 No domain or mail provider has been connected for this project yet. The full registration, verification, reset, and login implementation is present, but production registration/recovery cannot deliver mail until setup is complete. Missing configuration returns an explicit unavailable response; provider rejection never reports a successful send.
 
 1. Obtain a domain and connect a verified sending domain to Resend, including the DNS records it requests. Use a sender address on that domain.
-2. Set server-only RESEND_API_KEY and AUTH_EMAIL_FROM (for example, Finscope <accounts@your-domain.example>). Configure a securely generated AUTH_SECRET of at least 32 characters. Never place these values in client code, Git, chat, or logs.
-3. Keep local test flags disabled in the hosted environment. Configure ADMIN_EMAIL to the intended owner's address, then complete email verification for that account.
+2. Save the Resend key and sender in the restricted `/owner/setup` form described below, or configure the complete server-only pair `RESEND_API_KEY` and `AUTH_EMAIL_FROM` (for example, `Finscope <accounts@your-domain.example>`). A complete environment pair takes precedence; otherwise the app uses encrypted saved mail settings. A partial pair is not combined with part of a saved configuration.
+3. Keep the existing `AUTH_SECRET` stable and local test flags disabled in the hosted environment. Configure `ADMIN_EMAIL` to the intended owner's address, then register and complete real email verification for that account.
 4. Send an end-to-end registration email to an address you control. Test verification, logout/login, and password reset. Check spam placement and sender-domain status before inviting visitors.
 
 Mail is sent using Resend's HTTPS API with a unique idempotency key and a bounded timeout. The app waits for a successful provider acknowledgement, which confirms queue acceptance rather than inbox delivery. See [Resend's send-email API](https://resend.com/docs/api-reference/emails/send-email). There is no SMS, email-login link, or hidden production verification bypass.
 
 AUTH_SECRET is also the password pepper: retain it securely. Changing it without a migration makes existing passwords unverifiable and existing codes unusable. A planned rotation requires password recovery and session revocation; restore from secure configuration backup if it was lost. Do not casually regenerate it on every deployment.
+
+### Owner bootstrap before email is configured
+
+`/owner/setup` resolves the initial dependency between email configuration and a verified application administrator. It authorizes only the configured owner through the trusted Sites gateway, so the owner can securely save sponsored AI and mail settings before creating an application account. It does not create an account, choose an application password, start an application session, or return a verification code.
+
+Every setup read/write requires `OWNER_SETUP_ENABLED=true`, `AUTH_TRUST_SITES_IDENTITY=true`, a nonempty trusted Sites user ID, and an exact normalized email match with `ADMIN_EMAIL`. A normal application session or arbitrary request-body email is insufficient. Enable these flags only behind authentic Sites dispatch. **Do not expose an enabled setup gate on a directly reachable public Worker origin where identity headers can be supplied by a caller.** The existing private hosting audience remains a separate access layer.
+
+The masked form accepts an existing OpenAI API key, or a Resend API key together with its verified-domain sender. It stores credentials in the existing scope-bound AES-GCM vault. Server settings `AUTH_SECRET` and `CREDENTIAL_ENCRYPTION_KEY` must already exist and remain stable; neither is editable through this form. Saves perform local validation and encrypted persistence only: they do not validate provider credentials, send email, make an AI call, or prove domain verification. Returned status includes configuration source, a key suffix or sender where applicable, never plaintext credentials.
+
+A saved sponsored AI key takes precedence over `OPENAI_API_KEY`. For email, a complete environment key/sender pair takes precedence over the saved vault configuration. A stale complete environment pair must therefore be updated or removed in deployment settings; saving a new mail key cannot override it.
+
+After connecting mail, the owner must register with `ADMIN_EMAIL` and receive/enter the normal verification code before using `/admin`. Disable `OWNER_SETUP_ENABLED` after configuration when bootstrap access is no longer needed. Disable `AUTH_TRUST_SITES_IDENTITY` once neither bootstrap nor proof-based legacy linking is needed. Never use local email-test flags as a hosted workaround.
 
 ### Existing Sites account data
 
@@ -47,7 +61,7 @@ This mode still exercises the normal verification, password hashing, D1 account 
 
 ## Server configuration
 
-Local Worker values belong in **`apps/finscope/.dev.vars`**. This file and its variants are ignored by Git and must stay out of publication archives. Hosted values belong in the server-side secret/configuration mechanism. Do not put authentication or mail secrets in `NEXT_PUBLIC_*`, client components, browser storage, source files, or web forms. Secret values must never be echoed in status responses. The separate AI key management page accepts API keys over authenticated HTTPS and stores encrypted ciphertext; see [AI access](AI-ACCESS.md) for that vault.
+Local Worker values belong in **`apps/finscope/.dev.vars`**. This file and its variants are ignored by Git and must stay out of publication archives. Hosted values belong in the server-side secret/configuration mechanism. Do not put secrets in `NEXT_PUBLIC_*`, authored client code, browser storage, source control or logs. Authentication/encryption master secrets must never be submitted through web forms. The designated owner and personal-key forms accept provider credentials over authenticated HTTPS and persist encrypted ciphertext; see [AI access](AI-ACCESS.md). Status responses never echo plaintext secrets.
 
 | Name | Purpose |
 | --- | --- |
@@ -58,13 +72,15 @@ Local Worker values belong in **`apps/finscope/.dev.vars`**. This file and its v
 | `FMP_API_KEY` | Optional server-only Financial Modeling Prep credential. Coverage and entitlements depend on the provider. |
 | `ADMIN_USER_ID`, `ADMIN_EMAIL` | Exact application user ID or independently verified owner email allowed to read operational status. |
 | `AUTH_SECRET` | Stable random server-only password pepper and code-HMAC secret, at least 32 characters. |
-| `RESEND_API_KEY`, `AUTH_EMAIL_FROM` | Real email provider credential and verified sender. |
+| `CREDENTIAL_ENCRYPTION_KEY` | Stable 64-character hexadecimal AES-256-GCM master key for the provider vault. Keep outside D1; rotation requires re-encryption. |
+| `RESEND_API_KEY`, `AUTH_EMAIL_FROM` | Optional complete environment email-provider pair; takes precedence over encrypted saved mail settings. |
 | `AUTH_ALLOW_LOCAL_HTTP`, `AUTH_EMAIL_TEST_MODE` | Explicit loopback-only testing; false in hosted environments. |
-| `AUTH_TRUST_SITES_IDENTITY` | Temporary legacy-data linking behind trusted Sites dispatch only. |
+| `OWNER_SETUP_ENABLED` | Must equal `true` for owner bootstrap; disable after configuration when no longer needed. |
+| `AUTH_TRUST_SITES_IDENTITY` | Explicit owner bootstrap and proof-based legacy linking behind trusted Sites dispatch only. Never trust forgeable headers from a direct public Worker origin. |
 | `CRON_SECRET` | Random secret of at least 32 characters, shared only by the Worker and external schedule runner. |
 | `SCHEDULER_ENABLED` | Must equal `true` to allow enabled schedules; leave unset until the runner and data access work. |
 
-The live provider path does not silently substitute illustrative figures. Missing evidence produces an explicit error. AI research accepts public-financial reports, including the frozen curated case, and requires the OpenAI credential. Its analysis stays tied to the financial period; web context does not refresh stored statements.
+The live provider path does not silently substitute illustrative figures. Missing evidence produces an explicit error. AI research accepts account-saved public-financial reports, including a saved copy of the frozen curated case, and requires a personal key or a valid sponsored pass. Its analysis stays tied to the financial period; web context does not refresh stored statements.
 
 ### Administrator access
 

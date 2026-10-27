@@ -2,9 +2,10 @@ import { env } from "cloudflare:workers";
 import { headers } from "next/headers";
 import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { createAuth } from "./auth-core";
+import { resolveMailConfiguration } from "./mail-config";
 export type { AuthUser } from "./auth-core";
 
-const auth = createAuth({ env, legacyIdentity: getChatGPTUser });
+const auth = createAuth({ env, legacyIdentity: getChatGPTUser, resolveMail: async () => (await resolveMailConfiguration(env)).credentials });
 
 export async function getUser() {
   const incoming = await headers();

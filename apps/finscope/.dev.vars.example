@@ -18,8 +18,11 @@ AUTH_EMAIL_FROM=
 # Explicit local-only QA flags. Never enable these in a hosted environment.
 AUTH_ALLOW_LOCAL_HTTP=false
 AUTH_EMAIL_TEST_MODE=false
-# Optional one-time legacy data linking ONLY while behind trusted Sites dispatch.
+# Trust gateway identity ONLY behind Sites dispatch, for owner setup and verified legacy linking.
 AUTH_TRUST_SITES_IDENTITY=false
+# Temporary owner setup access. Requires trusted Sites dispatch and exact ADMIN_EMAIL.
+# Disable after credentials are configured; this does not create an application account.
+OWNER_SETUP_ENABLED=false
 # Enable only after a scheduler and financial provider are configured and tested.
 SCHEDULER_ENABLED=false
 CRON_SECRET=

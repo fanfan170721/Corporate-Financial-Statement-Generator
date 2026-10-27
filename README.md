@@ -2,7 +2,7 @@
 
 **Understand the numbers. Plan what comes next.**
 
-[Website](https://finscope-market-observatory.upbeatclove8.chatgpt.site) · [Developer handoff](apps/finscope/docs/HANDOFF.md) · [Operations](apps/finscope/docs/OPERATIONS.md) · [AI access](apps/finscope/docs/AI-ACCESS.md)
+[Website](https://finscope-market-observatory.upbeatclove8.chatgpt.site) · [Owner setup](apps/finscope/docs/GETTING-STARTED.md) · [Developer handoff](apps/finscope/docs/HANDOFF.md) · [Operations](apps/finscope/docs/OPERATIONS.md) · [AI access](apps/finscope/docs/AI-ACCESS.md)
 
 Finscope is a financial analysis and planning tool combining company statements, comparable charts, source-backed explanations, watchlists, portfolio scenarios and private notes. The English interface has light and dark themes, full-page navigation and an interactive fish-school welcome screen.
 
@@ -20,6 +20,8 @@ Finscope is a financial analysis and planning tool combining company statements,
 ## Service readiness
 
 The website retains its owner-private hosting audience. Application email accounts are independent of the hosting access policy.
+
+The restricted `/owner/setup` page lets the configured owner connect provider keys before email registration is available, using trusted Sites gateway identity. It stores encrypted settings without testing providers, creating an application account or bypassing email verification. Its trust flags must never be enabled on a directly reachable public Worker origin. Follow [Owner setup](apps/finscope/docs/GETTING-STARTED.md) for the required gate, mail setup and hosted verification.
 
 | Function | Implementation / configuration |
 | --- | --- |

@@ -14,6 +14,7 @@ declare namespace Cloudflare {
     AUTH_ALLOW_LOCAL_HTTP?: string;
     AUTH_EMAIL_TEST_MODE?: string;
     AUTH_TRUST_SITES_IDENTITY?: string;
+    OWNER_SETUP_ENABLED?: string;
     CRON_SECRET?: string;
     SCHEDULER_ENABLED?: string;
     CREDENTIAL_ENCRYPTION_KEY?: string;

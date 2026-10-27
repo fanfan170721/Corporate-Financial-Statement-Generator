@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { digest, equalHash, hashPassword, hmac, randomHex, verificationCode, verifyPassword } from "./auth-crypto";
+import type { MailCredentials } from "./mail-config";
 
 export type AuthUser = { userId: string; displayName: string; email: string; emailVerified: true };
 export type AuthEnvironment = { DB?: D1Database; AUTH_SECRET?: string; RESEND_API_KEY?: string; AUTH_EMAIL_FROM?: string; AUTH_ALLOW_LOCAL_HTTP?: string; AUTH_EMAIL_TEST_MODE?: string; AUTH_TRUST_SITES_IDENTITY?: string };
@@ -34,7 +35,7 @@ function response(value: unknown, status = 200, extra?: HeadersInit): Response {
   return Response.json(value, { status, headers });
 }
 
-export function createAuth(options: { env: AuthEnvironment; fetcher?: typeof fetch; now?: () => number; legacyIdentity?: () => Promise<LegacyIdentity> }) {
+export function createAuth(options: { env: AuthEnvironment; fetcher?: typeof fetch; now?: () => number; legacyIdentity?: () => Promise<LegacyIdentity>; resolveMail?: () => Promise<MailCredentials | null> }) {
   const { env } = options;
   const fetcher = options.fetcher || fetch;
   const now = options.now || Date.now;
@@ -47,11 +48,18 @@ export function createAuth(options: { env: AuthEnvironment; fetcher?: typeof fet
     if (!env.AUTH_SECRET || env.AUTH_SECRET.length < 32) throw new AuthError(503, "AUTH_NOT_CONFIGURED", "Account security is not configured yet. Please contact the site administrator.");
     return env.AUTH_SECRET;
   }
-  function emailReady(): boolean { return Boolean(env.RESEND_API_KEY?.trim() && env.AUTH_EMAIL_FROM?.trim() && env.AUTH_SECRET && env.AUTH_SECRET.length >= 32); }
+  async function mailCredentials(): Promise<MailCredentials | null> {
+    if (options.resolveMail) return options.resolveMail();
+    return env.RESEND_API_KEY?.trim() && env.AUTH_EMAIL_FROM?.trim() ? { apiKey: env.RESEND_API_KEY.trim(), from: env.AUTH_EMAIL_FROM.trim() } : null;
+  }
+  async function emailReady(): Promise<boolean> {
+    if (!env.AUTH_SECRET || env.AUTH_SECRET.length < 32) return false;
+    try { return Boolean(await mailCredentials()); } catch { return false; }
+  }
   function testEmail(request: Request): boolean { return env.AUTH_EMAIL_TEST_MODE === "true" && localHttp(new URL(request.url)); }
-  function requireEmail(request: Request): void {
+  async function requireEmail(request: Request): Promise<void> {
     secret();
-    if (!emailReady() && !testEmail(request)) throw new AuthError(503, "EMAIL_NOT_CONFIGURED", "Email verification is not available yet. No email was sent. Please contact the site administrator.");
+    if (!testEmail(request) && !await emailReady()) throw new AuthError(503, "EMAIL_NOT_CONFIGURED", "Email verification is not available yet. No email was sent. Please contact the site administrator.");
   }
   function localHttp(url: URL): boolean { return env.AUTH_ALLOW_LOCAL_HTTP === "true" && url.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname); }
   function cookieName(url: URL): string { return localHttp(url) ? "finscope_dev_session" : "__Host-finscope_session"; }
@@ -126,9 +134,11 @@ export function createAuth(options: { env: AuthEnvironment; fetcher?: typeof fet
       : purpose === "register" ? "This email address already has a Finscope account. Sign in or request a password reset. If you did not request this email, you can ignore it."
         : "A Finscope password reset was requested for this address, but no verified account is available. You can create an account from the registration page. If you did not request this email, ignore it.";
     try {
+      const sender = await mailCredentials();
+      if (!sender) throw new Error("mail not configured");
       // Workers supports manual/follow redirect modes. Manual plus !ok rejects all 3xx
       // without forwarding the API credential to a redirected destination.
-      const result = await fetcher("https://api.resend.com/emails", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${env.RESEND_API_KEY}`, "Idempotency-Key": `finscope-auth/${id}` }, body: JSON.stringify({ from: env.AUTH_EMAIL_FROM, to: [email], subject: code ? `Your Finscope ${purpose === "register" ? "verification" : "password reset"} code` : "Your Finscope account request", text }), signal: AbortSignal.timeout(12_000), redirect: "manual" });
+      const result = await fetcher("https://api.resend.com/emails", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sender.apiKey}`, "Idempotency-Key": `finscope-auth/${id}` }, body: JSON.stringify({ from: sender.from, to: [email], subject: code ? `Your Finscope ${purpose === "register" ? "verification" : "password reset"} code` : "Your Finscope account request", text }), signal: AbortSignal.timeout(12_000), redirect: "manual" });
       if (!result.ok) throw new Error("mail rejected");
       const accepted = await result.json() as { id?: unknown };
       if (typeof accepted.id !== "string" || !accepted.id) throw new Error("mail not acknowledged");
@@ -185,7 +195,7 @@ export function createAuth(options: { env: AuthEnvironment; fetcher?: typeof fet
   }
   async function handler(request: Request, action: string): Promise<Response> {
     try {
-      if (action === "config" && request.method === "GET") return response({ emailDeliveryAvailable: emailReady() || (testEmail(request) && Boolean(env.AUTH_SECRET && env.AUTH_SECRET.length >= 32)), deliveryMode: testEmail(request) ? "local-test" : "email", password: { minLength: 12, maxLength: 128 }, codeLength: 6, expiresIn: CHALLENGE_TTL / 1000 });
+      if (action === "config" && request.method === "GET") return response({ emailDeliveryAvailable: await emailReady() || (testEmail(request) && Boolean(env.AUTH_SECRET && env.AUTH_SECRET.length >= 32)), deliveryMode: testEmail(request) ? "local-test" : "email", password: { minLength: 12, maxLength: 128 }, codeLength: 6, expiresIn: CHALLENGE_TTL / 1000 });
       if (action === "dev-outbox" && request.method === "GET") {
         if (!testEmail(request)) return response({ error: "Not found.", code: "NOT_FOUND" }, 404);
         return response({ mode: "local-test", messages: localOutbox.filter((mail) => mail.createdAt > now() - CHALLENGE_TTL) });
@@ -211,7 +221,7 @@ export function createAuth(options: { env: AuthEnvironment; fetcher?: typeof fet
       secret();
       if (action === "register") {
         const input = await parse(request, z.object({ name: z.string().trim().min(1).max(80), email: emailSchema, password: passwordSchema }).strict());
-        requireEmail(request);
+        await requireEmail(request);
         await mailLimits(request, input.email);
         const passwordHash = await hashPassword(input.password, secret());
         const existing = await findAccount(input.email);
@@ -227,7 +237,7 @@ export function createAuth(options: { env: AuthEnvironment; fetcher?: typeof fet
       }
       if (action === "resend-verification") {
         const input = await parse(request, z.object({ email: emailSchema, challengeId: z.string().uuid() }).strict());
-        requireEmail(request);
+        await requireEmail(request);
         await mailLimits(request, input.email);
         const previous = await db().prepare("SELECT payload FROM auth_challenges WHERE id=? AND email=? AND purpose='register' AND created_at>? AND delivery='sent' AND consumed_at IS NULL").bind(input.challengeId, input.email, now() - DAY).first<{ payload: string }>();
         const exists = await findAccount(input.email);
@@ -256,7 +266,7 @@ export function createAuth(options: { env: AuthEnvironment; fetcher?: typeof fet
       }
       if (action === "forgot-password") {
         const input = await parse(request, z.object({ email: emailSchema }).strict());
-        requireEmail(request);
+        await requireEmail(request);
         await mailLimits(request, input.email);
         const account = await findAccount(input.email);
         return await issueChallenge(request, input.email, "reset", account ? { userId: account.user_id, passwordVersion: account.password_version } : null);
