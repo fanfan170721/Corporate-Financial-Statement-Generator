@@ -16,11 +16,13 @@ Before email delivery is configured, the owner can save the existing sponsored A
 
 After registration and email verification, the owner manages sponsored keys and passes in `/admin`. A saved sponsored key takes precedence over server `OPENAI_API_KEY`. Saving a key makes no provider-validation or billable request. Pass creation accepts a label, maximum claims and redemption deadline. The secret code is shown once; D1 retains its SHA-256 hash. It is not an OpenAI key.
 
+Verified administrators are exempt from application report and AI allowances. They can use the configured sponsored key without redeeming a pass, or use their own saved key. This exemption is determined from the verified authentication account and server administrator configuration, never a browser-supplied role or editable profile. Administrator usage is still recorded in a separate `admin:` budget scope and does not exhaust visitor allowances. Missing provider configuration, provider balance/rate limits, authentication, source-evidence checks, input bounds and request timeouts still apply. The exemption does not purchase credits or enable automatic billing.
+
 Each claimant receives 24 hours beginning at successful redemption, tracked by server time across devices. An account cannot reuse a code or stack active passes. Revocation stops new requests, including existing grants; it cannot cancel provider work in flight. An atomic grant INSERT and SQL counter trigger enforce shared-code capacity.
 
 ## Budgets
 
-Defaults: 100,000 tokens and 5 requests per person per 24-hour pass. Personal accounts use the same limits per UTC day. Sponsored calls also have a site-wide 500,000-token and 25-request daily ceiling. Owners can change these; existing passes keep their issued personal allowance.
+Defaults for non-administrators: 100,000 tokens and 5 requests per person per 24-hour pass. Personal accounts use the same limits per UTC day. Sponsored visitor calls also have a shared 500,000-token and 25-request daily ceiling. Owners can change these; existing passes keep their issued personal allowance.
 
 Each AI request reserves 20,000 tokens atomically and allows one in-flight AI request per user. Actual input/output usage replaces the reservation. Unknown/failed calls retain it; failed requests also count towards the request limit. New calls are denied when the next reservation exceeds the allowance. Final provider usage may exceed an estimate, so an admitted call can push the final total over an application threshold. These controls are **not a currency hard cap**. Web search has separate provider charges; configure an OpenAI project spending limit too.
 

@@ -73,6 +73,33 @@ function request(path: string, method = "GET", value?: unknown, origin = "https:
   return new Request(`https://finscope.test${path}`, { method, headers: { Origin: origin, "Content-Type": "application/json" }, ...(value !== undefined ? { body: JSON.stringify(value) } : {}) });
 }
 
+test("verified owners bypass report usage and concurrent allowances while retaining the ledger", async () => {
+  const f = await fixture();
+  try {
+    f.env.ADMIN_EMAIL = "ALICE@example.test";
+    await f.server.getViewer();
+    f.sql.prepare("INSERT INTO auth_accounts(user_id,email,password_hash,verified_at,created_at,updated_at) VALUES ('alice','alice@example.test','test',1,1,1)").run();
+    const ids = await Promise.all(Array.from({length: 6}, () => f.server.claimJob("alice", 3, 6, "report_ai")));
+    const usage = await f.server.getUsage("alice");
+    assert.equal(usage.unlimited, true);
+    assert.equal(usage.used, 36);
+    assert.equal(usage.active, 18);
+    assert.equal(f.sql.prepare("SELECT COUNT(*) n FROM report_jobs WHERE user_id='alice'").get()!.n, 6);
+    await Promise.all(ids.map(id => f.server.releaseJob("alice", id)));
+    assert.equal((await f.server.getUsage("alice")).active, 0);
+    await assert.rejects(f.server.claimJob("alice", 4, 8, "invalid"), /invalid/);
+    f.setUser("bob");
+    await f.server.getViewer();
+    f.sql.prepare("UPDATE profiles SET email='alice@example.test' WHERE user_id='bob'").run();
+    assert.equal(await f.server.isAdminAccount("bob"), false, "editable profile email cannot grant owner allowance");
+    await f.server.claimJob("bob", 3, 3, "report");
+    await assert.rejects(f.server.claimJob("bob", 1, 1, "report"), /three companies/);
+    f.sql.prepare("UPDATE auth_accounts SET verified_at=0 WHERE user_id='alice'").run();
+    f.env.ADMIN_USER_ID = "alice";
+    assert.equal(await f.server.isAdminAccount("alice"), false, "configured ID cannot bypass account verification");
+  } finally { f.close(); }
+});
+
 test('language preferences persist per account and survive unrelated preference updates', async () => {
   const f=await fixture();
   try {

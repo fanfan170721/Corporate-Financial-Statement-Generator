@@ -14,6 +14,14 @@ export function isAdmin(user: AuthUser | null): boolean {
   if (!user?.emailVerified) return false;
   return Boolean((env.ADMIN_USER_ID && user.userId === env.ADMIN_USER_ID) || (env.ADMIN_EMAIL && user.email.toLowerCase() === env.ADMIN_EMAIL.trim().toLowerCase()));
 }
+
+/** Quota exemptions use verified account records, never editable profile data. */
+export async function isAdminAccount(userId: string): Promise<boolean> {
+  if (!env.ADMIN_EMAIL && !env.ADMIN_USER_ID) return false;
+  const account = await database().prepare("SELECT user_id,email FROM auth_accounts WHERE user_id=? AND verified_at>0")
+    .bind(userId).first<{ user_id: string; email: string }>();
+  return account ? isAdmin({ userId: account.user_id, email: account.email, displayName: "", emailVerified: true }) : false;
+}
 const LEASE_MS = 10 * 60_000;
 const DEFAULT_PREFERENCES: Preferences = { theme: "light", interests: [], defaultMode: "live", reducedMotion: false, locale: "en-CA" };
 const DEFAULT_SCHEDULE: Schedule = { symbols: [], time: "08:00", timezone: "America/Toronto", enabled: false, lastRun: null };
@@ -162,7 +170,7 @@ export async function getUsage(userId: string, now = new Date()): Promise<Viewer
   const row = await database().prepare(`SELECT COALESCE(SUM(CASE WHEN quota_day=? THEN cost ELSE 0 END),0) AS used,
     COALESCE(SUM(CASE WHEN state='active' AND expires_at>? THEN units ELSE 0 END),0) AS active
     FROM report_jobs WHERE user_id=? AND (quota_day=? OR (state='active' AND expires_at>?))`).bind(now.toISOString().slice(0, 10), now.getTime(), userId, now.toISOString().slice(0, 10), now.getTime()).first<{ used: number; active: number }>();
-  return { used: row?.used ?? 0, active: row?.active ?? 0, limit: DAILY_LIMIT };
+  return { used: row?.used ?? 0, active: row?.active ?? 0, limit: DAILY_LIMIT, ...(await isAdminAccount(userId) ? { unlimited: true } : {}) };
 }
 
 export async function getViewer(): Promise<Viewer> {
@@ -215,6 +223,11 @@ export async function claimJob(userId: string, units: number, cost: number, kind
   if (!Number.isInteger(units) || units < 1 || units > CONCURRENT_LIMIT || !Number.isInteger(cost) || cost < units || cost > 6) throw new ApiError(400, "INVALID_JOB", "The number of requested jobs is invalid.");
   const id = crypto.randomUUID();
   const day = now.toISOString().slice(0, 10);
+  if (await isAdminAccount(userId)) {
+    await database().prepare("INSERT INTO report_jobs (id,user_id,units,cost,kind,quota_day,state,expires_at,created_at) VALUES (?,?,?,?,?,?,'active',?,?)")
+      .bind(id, userId, units, cost, kind, day, now.getTime() + LEASE_MS, now.toISOString()).run();
+    return id;
+  }
   // D1 executes this statement atomically. A separate count followed by insert would race.
   const row = await database().prepare(`INSERT INTO report_jobs (id,user_id,units,cost,kind,quota_day,state,expires_at,created_at)
     SELECT ?,?,?,?,?,?,'active',?,?

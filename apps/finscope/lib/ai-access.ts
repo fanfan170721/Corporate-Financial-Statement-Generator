@@ -1,6 +1,6 @@
 import { env } from 'cloudflare:workers';
 import { z } from 'zod';
-import { ApiError, apiHandler, assertSameOrigin, assertFinancialAnalysisScope, body, database, isAdmin, json, requireUser } from './server';
+import { ApiError, apiHandler, assertSameOrigin, assertFinancialAnalysisScope, body, database, isAdmin, isAdminAccount, json, requireUser } from './server';
 import { hashAccessCode, newAccessCode, openCredential, sealCredential } from './credential-vault';
 import { generateAIAnalysis } from './ai';
 import type { AIAnalysis, Report } from './types';
@@ -35,15 +35,15 @@ async function usage(scope: string) {
   return await database().prepare('SELECT COALESCE(SUM(charged_tokens),0) AS tokens,COUNT(*) AS requests FROM ai_usage WHERE budget_scope=?').bind(scope).first<{ tokens: number; requests: number }>() ?? { tokens: 0, requests: 0 };
 }
 export async function aiStatus(userId: string) {
-  const [own, grant, config, sponsored] = await Promise.all([savedKey(userId), activeGrant(userId), aiConfig(), sponsorReady()]);
-  const mode = own ? 'personal' : grant && sponsored ? 'sponsored' : 'locked';
-  const scope = own ? `personal:${userId}:${new Date().toISOString().slice(0, 10)}` : grant ? `grant:${grant.id}` : '';
+  const [own, grant, config, sponsored, unlimited] = await Promise.all([savedKey(userId), activeGrant(userId), aiConfig(), sponsorReady(), isAdminAccount(userId)]);
+  const mode = unlimited && (own || sponsored) ? 'admin' : own ? 'personal' : grant && sponsored ? 'sponsored' : 'locked';
+  const scope = unlimited ? `admin:${userId}:${new Date().toISOString().slice(0, 10)}` : own ? `personal:${userId}:${new Date().toISOString().slice(0, 10)}` : grant ? `grant:${grant.id}` : '';
   const spent = scope ? await usage(scope) : { tokens: 0, requests: 0 };
-  return { mode, canUse: mode !== 'locked', storageReady: /^[a-f0-9]{64}$/i.test(env.CREDENTIAL_ENCRYPTION_KEY || ''), sponsorReady: sponsored,
+  return { mode, unlimited, canUse: mode !== 'locked', storageReady: /^[a-f0-9]{64}$/i.test(env.CREDENTIAL_ENCRYPTION_KEY || ''), sponsorReady: sponsored,
     personalKey: own ? { suffix: own.suffix, updatedAt: own.updated_at } : null,
-    passExpiresAt: grant ? new Date(grant.expires_at).toISOString() : null,
+    passExpiresAt: !unlimited && grant ? new Date(grant.expires_at).toISOString() : null,
     limits: own || !grant ? { tokens: config.dailyTokens, requests: config.dailyRequests } : { tokens: grant.token_limit, requests: grant.request_limit },
-    usage: spent, reservation: RESERVATION, resetsAt: own ? new Date(Date.now() - Date.now() % DAY + DAY).toISOString() : grant ? new Date(grant.expires_at).toISOString() : null };
+    usage: spent, reservation: RESERVATION, resetsAt: unlimited ? null : own ? new Date(Date.now() - Date.now() % DAY + DAY).toISOString() : grant ? new Date(grant.expires_at).toISOString() : null };
 }
 async function storeKey(scope: string, key: string) {
   if (!env.CREDENTIAL_ENCRYPTION_KEY) throw new ApiError(503, 'VAULT_UNAVAILABLE', 'Secure key storage is not connected yet. Please contact the site owner.');
@@ -113,23 +113,27 @@ export function handleSponsorKey(request: Request) { return apiHandler(async () 
 export async function generateMeteredAnalysis(userId: string, report: Report): Promise<AIAnalysis> {
   assertFinancialAnalysisScope(report);
   const now = Date.now(); const day = new Date(now).toISOString().slice(0, 10);
-  const [own, grant, config] = await Promise.all([savedKey(userId), activeGrant(userId, now), aiConfig()]);
-  if (!own && !grant) throw new ApiError(403, 'AI_ACCESS_REQUIRED', 'Add your own API key or redeem a 24-hour AI pass in AI access. All other tools remain available.');
+  const [own, grant, config, unlimited] = await Promise.all([savedKey(userId), activeGrant(userId, now), aiConfig(), isAdminAccount(userId)]);
+  if (!own && !grant && !unlimited) throw new ApiError(403, 'AI_ACCESS_REQUIRED', 'Add your own API key or redeem a 24-hour AI pass in AI access. All other tools remain available.');
   const sponsor = own ? null : await savedKey(SPONSOR);
-  const scope = own ? `personal:${userId}:${day}` : `grant:${grant!.id}`;
+  const scope = unlimited ? `admin:${userId}:${day}` : own ? `personal:${userId}:${day}` : `grant:${grant!.id}`;
   const keyRow = own || sponsor;
   const apiKey = keyRow ? await openCredential(keyRow.ciphertext, own ? userId : SPONSOR, env.CREDENTIAL_ENCRYPTION_KEY || '') : env.OPENAI_API_KEY;
   if (!apiKey) throw new ApiError(503, 'AI_UNAVAILABLE', 'The sponsored API connection is not available. You can use your own API key instead.');
-  const tokenLimit = own ? config.dailyTokens : grant!.token_limit;
-  const requestLimit = own ? config.dailyRequests : grant!.request_limit;
+  const tokenLimit = own || unlimited ? config.dailyTokens : grant!.token_limit;
+  const requestLimit = own || unlimited ? config.dailyRequests : grant!.request_limit;
   const id = crypto.randomUUID();
-  const row = await database().prepare(`INSERT INTO ai_usage (id,user_id,budget_scope,quota_day,sponsored,charged_tokens,input_tokens,output_tokens,state,expires_at,created_at)
+  const row = unlimited
+    ? await database().prepare(`INSERT INTO ai_usage (id,user_id,budget_scope,quota_day,sponsored,charged_tokens,input_tokens,output_tokens,state,expires_at,created_at)
+      VALUES (?,?,?,?,?,?,0,0,'reserved',?,?) RETURNING id`)
+      .bind(id, userId, scope, day, own ? 0 : 1, RESERVATION, now + 120_000, now).first()
+    : await database().prepare(`INSERT INTO ai_usage (id,user_id,budget_scope,quota_day,sponsored,charged_tokens,input_tokens,output_tokens,state,expires_at,created_at)
     SELECT ?,?,?,?,?,?,0,0,'reserved',?,?
     WHERE (SELECT COUNT(*) FROM ai_usage WHERE user_id=? AND state='reserved' AND expires_at>?)=0
     AND (SELECT COUNT(*) FROM ai_usage WHERE budget_scope=?)<?
     AND COALESCE((SELECT SUM(charged_tokens) FROM ai_usage WHERE budget_scope=?),0)+?<=?
-    AND (?=0 OR ((SELECT COUNT(*) FROM ai_usage WHERE sponsored=1 AND quota_day=?)<?
-      AND COALESCE((SELECT SUM(charged_tokens) FROM ai_usage WHERE sponsored=1 AND quota_day=?),0)+?<=?))
+    AND (?=0 OR ((SELECT COUNT(*) FROM ai_usage WHERE sponsored=1 AND quota_day=? AND budget_scope NOT LIKE 'admin:%')<?
+      AND COALESCE((SELECT SUM(charged_tokens) FROM ai_usage WHERE sponsored=1 AND quota_day=? AND budget_scope NOT LIKE 'admin:%'),0)+?<=?))
     AND (?=0 OR EXISTS(SELECT 1 FROM ai_grants g JOIN ai_passes p ON p.id=g.pass_id WHERE g.id=? AND g.user_id=? AND g.expires_at>? AND p.revoked=0)) RETURNING id`)
     .bind(id, userId, scope, day, own ? 0 : 1, RESERVATION, now + 120_000, now, userId, now, scope, requestLimit, scope, RESERVATION, tokenLimit,
       own ? 0 : 1, day, config.globalDailyRequests, day, RESERVATION, config.globalDailyTokens, own ? 0 : 1, grant?.id ?? '', userId, now).first();

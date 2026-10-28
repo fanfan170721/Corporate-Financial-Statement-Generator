@@ -234,3 +234,53 @@ test("personal credentials use the owner's scope and cannot spend sponsored fund
     assert.equal(f.calls(), 1);
   } finally { f.close(); }
 });
+
+test("verified owners use sponsored AI without a pass or site limits while usage remains metered", async () => {
+  const f = await fixture();
+  try {
+    await f.ai.getViewer();
+    f.sql.prepare("INSERT INTO auth_accounts(user_id,email,password_hash,verified_at,created_at,updated_at) VALUES ('owner','owner@example.test','test',1,1,1)").run();
+    await f.ai.handleAdminAI(f.request("/api/admin/ai", "PATCH", { dailyTokens: 20_000, dailyRequests: 1, globalDailyTokens: 20_000, globalDailyRequests: 1 }));
+    const status = await f.ai.aiStatus("owner");
+    assert.equal(status.mode, "admin");
+    assert.equal(status.unlimited, true);
+    assert.equal(status.canUse, true);
+    assert.equal(status.passExpiresAt, null);
+    assert.equal(status.resetsAt, null);
+    f.setProvider(async (_input, options) => { options.onUsage({ inputTokens: 25_000, outputTokens: 1_000 }); return { status: "ready" }; });
+    await Promise.all(Array.from({length: 3}, () => f.ai.generateMeteredAnalysis("owner", report)));
+    const day = new Date().toISOString().slice(0, 10);
+    const row = f.sql.prepare("SELECT SUM(charged_tokens) tokens,COUNT(*) requests FROM ai_usage WHERE budget_scope=?").get(`admin:owner:${day}`)!;
+    assert.equal(row.tokens, 78_000);
+    assert.equal(row.requests, 3);
+    assert.equal(f.calls(), 3);
+    assert.equal(f.sql.prepare("SELECT COUNT(*) n FROM ai_grants WHERE user_id='owner'").get()!.n, 0);
+    // Owner activity has a separate budget scope and cannot exhaust a visitor's pool.
+    const pass = await f.pass();
+    await f.redeem(pass.code, "alice");
+    f.setProvider(async (_input, options) => { options.onUsage({inputTokens:100,outputTokens:10}); return {status:"ready"}; });
+    await f.ai.generateMeteredAnalysis("alice", report);
+    await assert.rejects(f.ai.generateMeteredAnalysis("alice", report), /allowance/);
+    assert.equal(f.calls(), 4);
+    delete f.env.OPENAI_API_KEY;
+    const unavailable = await f.ai.aiStatus("owner");
+    assert.equal(unavailable.unlimited, true);
+    assert.equal(unavailable.canUse, false);
+    assert.equal(unavailable.mode, "locked");
+  } finally { f.close(); }
+});
+
+test("unverified or profile-only owner claims cannot bypass sponsored AI admission", async () => {
+  const f = await fixture();
+  try {
+    await f.ai.getViewer();
+    f.env.ADMIN_USER_ID = "owner";
+    assert.equal((await f.ai.aiStatus("owner")).unlimited, false);
+    await assert.rejects(f.ai.generateMeteredAnalysis("owner", report), /API key|pass/);
+    f.sql.prepare("INSERT INTO auth_accounts(user_id,email,password_hash,verified_at,created_at,updated_at) VALUES ('owner','owner@example.test','test',0,1,1)").run();
+    assert.equal((await f.ai.aiStatus("owner")).unlimited, false);
+    await assert.rejects(f.ai.generateMeteredAnalysis("owner", report), /API key|pass/);
+    assert.equal(f.calls(), 0);
+    assert.equal(f.sql.prepare("SELECT COUNT(*) n FROM ai_usage").get()!.n, 0);
+  } finally { f.close(); }
+});

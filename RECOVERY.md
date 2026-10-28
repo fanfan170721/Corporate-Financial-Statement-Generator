@@ -51,6 +51,16 @@ The evidence-scope update is Sites version **18** (version 17 introduced the sam
 - Verification: 129 tests, TypeScript and production build passed; final catalogue changes passed targeted translation/export checks. Real SEC retrieval returned NVDA full (100%), JPM partial (67.3%) and CNI basic (eight original filings). Live production search confirmed CNI/JPM availability. Normal local guest requests generated and reopened both reports; CNI's English/French UI showed the correct scope without empty financial charts or AI controls. Browser inspection of the completed JPM page and the CSV download observer timed out; no further browser success is claimed. CSV content is covered by automated tests. No paid AI request or production guest credit was used.
 - Previous release retained at `release-2026-10-27-pond`; current source checkpoint: `release-2026-10-27-scope`.
 
+The verified administrator access release is Sites version **19**. It exempts verified administrator accounts from internal report and AI allowances, preserves normal-user limits, and records administrator usage separately. No schema migration or credential rotation was required.
+
+- Saved version: `appgprj_6adfe53d05bc8191983062a369584a6a~appgver_09d7a3f2b4fc8191a762306dc9f9b2fc`
+- Published source: `cb0a6c3b33643adbfaec63e7d8fae555b3e97168`
+- Successful deployment: `appgdep_6ae172e586b08191b6c3dbb9b73562b8`
+- Deployment archive: `outputs/finscope-admin-access-v19.tar.gz` (ignored by Git).
+- Verification: 132 tests, TypeScript and production build passed. The owner confirmed real registration email delivery, verification, password login and successful password recovery/new-password login. Production settings and AI access display administrator status and unlimited site allowance. A real NVIDIA report and seven-dimension AI analysis were generated, saved and reopened; the AI ledger records one request and 24,410 tokens. No payment setting or automatic reload was changed.
+- Runtime environment revision 5 closes temporary bootstrap/linking (`OWNER_SETUP_ENABLED=false`, `AUTH_TRUST_SITES_IDENTITY=false`) after verified account management succeeded. Keep `AUTH_SECRET`, encryption keys and existing provider credentials unchanged. Anonymous admin and AI-settings requests return 401; bootstrap returns 404.
+- Source checkpoint: `release-admin-access-v19`. The previous scope checkpoint and all older tags remain intact. Post-deployment documentation records the verification outcomes; runtime code matches the published source.
+
 Fetch the tag, then open it in a separate directory rather than resetting the current checkout:
 
 ```sh

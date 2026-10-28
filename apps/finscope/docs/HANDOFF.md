@@ -2,6 +2,12 @@
 
 This document records Finscope's architecture, current service readiness and development priorities.
 
+## Administrator allowances
+
+Verified application administrators receive unlimited site report and AI allowances. `isAdminAccount` reads the verified `auth_accounts` identity and applies server administrator configuration; editable profiles never grant the exemption. `Viewer.usage.unlimited` and AI status `unlimited` control the English/French displays. Administrator AI uses a separate usage-ledger scope and can use the existing sponsored connection without a pass. Normal accounts and guests retain their allowances. Provider balance/rate limits and existing authentication, evidence and request-validation checks remain in force. No automatic billing is enabled by this change.
+
+Production account verification is complete for the owner's account: the owner received the registration email, verified the code, signed out and back in, then completed password recovery and signed in with the new password. The authenticated workspace and administrator controls were observed on the branded domain. No test-mail mode or verification bypass was used. Version 19 also passed a real sponsored NVIDIA AI request: seven research dimensions, 24,410 metered tokens, and the saved analysis remained after reload. Unlimited administrator status and the single recorded request were observed in AI access. Do not repeat a paid test merely to reconfirm this record. Bootstrap and trusted gateway linking are now disabled; normal management uses the verified application's `/admin` page.
+
 ## Report scope and sparse disclosures
 
 Reports distinguish full financial coverage, partial financial coverage and basic public information. The original full-coverage threshold still governs recommendations. Search may enable a partial report using the financial concepts actually disclosed, or a basic report after SEC submissions verify the issuer identity and at least one filing. Directory-only matches do not qualify. Data scope and retrieval limitations accompany the report and its export; no missing number is replaced with zero. Basic reports show company details and source documents without empty financial charts or financial AI calls.
@@ -53,7 +59,7 @@ Separately, normal production guest credits generated Apple and Tesla reports. B
 
 TypeScript and 115 automated tests passed; the production build succeeded. Original version 11 remains the rollback checkpoint in the root recovery document. There is no all-company guarantee, and broad employee, live-price and bank/insurer coverage is not established by these tests.
 
-Email/password, verification/reset, account ownership, guest isolation and encrypted credentials remain implemented. Real hosted registration/inbox delivery and the hosted account-plus-AI flow retain their separate verification requirements. Guest sessions remain 24 hours with three manual report credits and no AI, key management, sponsored passes or daily schedules. Existing registered-user functions and saved data are preserved. Scheduling still requires its external runner and verification; saved drafts do not activate jobs.
+Email/password, verification/reset, account ownership, guest isolation and encrypted credentials remain implemented. The owner has completed the real production registration, inbox delivery, verification, login and password-recovery checks, followed by a successful saved AI analysis on version 19. Guest sessions remain 24 hours with three manual report credits and no AI, key management, sponsored passes or daily schedules. Existing registered-user functions and saved data are preserved. Scheduling still requires its external runner and verification; saved drafts do not activate jobs.
 
 ### Development and release requirements
 
@@ -125,7 +131,7 @@ Owner setup stores provider configuration without sending email or validating AP
 
 ## Next operational work
 
-Verify the financial release against the dated brief and its audit fingerprint before expanding supplementary signals. For account readiness, open `/owner/setup` through the owner's authenticated Sites session when bootstrap remains enabled. Anonymous requests receive a generic 404. The existing sponsored AI credential and restricted email configuration are already saved; do not create or replace them merely to check readiness. Use existing API credit for relevant authorized tests; do not purchase credits or enable automatic charging. The website domains have active TLS and `mail.finscopehq.com` is verified in Resend. The remaining email task is real registration, inbox delivery and verification, followed by login and password-recovery checks. Disable bootstrap when no longer needed. Guest mode can operate without this email workflow.
+Verify the financial release against the dated brief and its audit fingerprint before expanding supplementary signals. The existing sponsored AI credential and restricted email configuration are saved and have passed real production use; do not recreate or replace them merely to check readiness. Registration, email verification, password login and recovery succeeded for the owner. Normal management is through the verified application's `/admin` page. `OWNER_SETUP_ENABLED=false` and `AUTH_TRUST_SITES_IDENTITY=false` close the temporary bootstrap route, which returns 404. Anonymous admin and AI-settings requests return 401. Use existing API credit only for necessary authorized tests; do not purchase credits or enable automatic charging. The website domains have active TLS and `mail.finscopehq.com` is verified in Resend. Guest mode remains independent of email registration.
 
 Validate each additional data source and scheduler operation separately. Add retention and account-deletion tooling before expanding usage. These are follow-ups, not claims that unconfigured services already work.
 
