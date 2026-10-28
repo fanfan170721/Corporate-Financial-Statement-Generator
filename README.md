@@ -8,7 +8,7 @@ Finscope is a financial analysis and planning tool combining company statements,
 
 ## Features
 
-- SEC-backed company discovery, verified report availability and comparisons for up to three issuers.
+- Lightweight company discovery, on-demand financial reports and comparisons for up to three issuers.
 - Standardized annual income, balance-sheet and cash-flow summaries with dates, currencies, missing-value handling and original filing sources.
 - Six financial charts, calculated ratios, CSV export and print layouts.
 - Email/password accounts, verification codes, password reset and persistent sessions. Account-owned records live in Cloudflare D1.
@@ -27,12 +27,12 @@ The restricted `/owner/setup` page lets the configured owner connect provider ke
 | Function | Implementation / configuration |
 | --- | --- |
 | Email authentication | Implemented; delivery requires Resend and a verified sender domain. Production never simulates delivery. |
-| Company reports | SEC EDGAR directory, company-facts and submissions adapters provide annual financial summaries or clearly scoped basic profiles. A genuine operator contact in `SEC_USER_AGENT` is required; no SEC API key is needed. Search verifies the available evidence before enabling selection. |
+| Company reports | SEC EDGAR directory, company-facts and submissions adapters provide annual financial summaries or clearly scoped basic profiles. A genuine operator contact in `SEC_USER_AGENT` is required; no SEC API key is needed. Search loads company metadata; evidence is fetched and coverage checked when a report is requested. |
 | Saved data | D1 stores reports, watchlists, notes, plans and preferences for authenticated accounts. |
 | AI | Requires a funded personal or sponsored OpenAI API key. No key is included in Git. |
 | Daily reports | Runner implemented; disabled until configuration and a manual verification succeed. |
 
-Full financial coverage requires strictly more than 90% completeness across the same 11 core fields and every displayed annual period, at least two comparable years, all six current primary totals, at most one missing latest field, and a valid latest reporting date within 550 days. Recommendations retain this standard. Search can also offer partial financial reports and basic public-information reports with verified issuer details and filing links. Each report identifies its scope, missing information and source dates. Missing financials are never invented, and basic reports do not support financial AI analysis. Coverage depends on the connected sources; it does not include every listed or private company worldwide.
+Full financial coverage requires strictly more than 90% completeness across the same 11 core fields and every displayed annual period, at least two comparable years, all six current primary totals, at most one missing latest field, and a valid latest reporting date within 550 days. Suggestions and search results are metadata with coverage pending. On generation, available evidence determines whether the report has full or partial financial coverage, or basic public information with verified issuer details and filing links. Each report identifies its scope, missing information and source dates. Missing financials are never invented, and basic reports do not support financial AI analysis. Coverage depends on the connected sources; it does not include every listed or private company worldwide.
 
 Public financial evidence can be cached for 15 minutes. Optional company context adds SEC industry/filing information and an employee count only when a dated disclosure can be verified; it does not promise broad headcount, hiring, salary or review coverage. See [Data and methodology](apps/finscope/docs/DATA.md) and the [350-issuer local adapter audit](apps/finscope/docs/coverage/2026-10-27-local.json). The audit records its parser fingerprint and environment; local results do not establish production-browser availability.
 

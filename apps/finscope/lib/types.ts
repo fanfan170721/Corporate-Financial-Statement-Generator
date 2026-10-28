@@ -1,6 +1,6 @@
 export type ReportScope = { level: 'full' | 'partial' | 'basic'; available: string[]; missing: string[]; limitations: string[] };
 export type DataCoverage = { status: 'available' | 'limited' | 'unavailable'; completeness: number; periods: number; dataAsOf: string; checkedAt: string; missing: string[]; reason?: string; present?: number; expected?: number; reportLevel?: ReportScope['level']; reportAvailable?: boolean };
-export type Company = { symbol: string; name: string; nameEn: string; exchange: string; sector: string; color: string; mark: string; cik?: string; coverage?: DataCoverage };
+export type Company = { symbol: string; name: string; nameEn: string; exchange: string; sector: string; color: string; mark: string; cik?: string; coverage?: DataCoverage; discoveryOnly?: boolean; discoveryProvider?: "fmp" };
 export type FinancialPeriod = { year: string; revenue: number | null; netIncome: number | null; operatingCashFlow: number | null; capex: number | null; assets: number | null; liabilities: number | null; cash: number | null; debt: number | null; grossProfit: number | null; operatingIncome: number | null; equity: number | null };
 export type Source = { label: string; url: string; asOf?: string };
 export type Insight = { title: string; stance: 'positive' | 'neutral' | 'caution'; summary: string; detail?: string };

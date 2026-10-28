@@ -2,9 +2,9 @@
 
 ## Coverage and report availability
 
-Financial evidence is the primary output. SEC-backed discovery uses a current issuer/security directory rather than the curated alias list as its universe. Exact ticker matches retain security identity, including share classes; issuer financial evidence may be reused by CIK. Search verifies the selected issuer's financial data before enabling generation. Recommendations include only results that pass the same gate. Missing evidence produces a labelled, disabled result, not an invented report.
+Financial evidence is fetched only after the user requests a report. Homepage ideas use curated company metadata without upstream requests. Typed search uses the cached SEC issuer/security directory rather than the curated alias list as its universe; it does not fetch company facts, filing history or annual documents. Exact ticker matches retain security identity, including share classes. Discovery results are explicitly marked as awaiting a coverage check, not verified financial availability. Report generation resolves the current issuer identity, retrieves public evidence and labels the result as full, partial or basic. Missing evidence is never replaced with invented figures.
 
-The fixed completeness denominator is **11 fields × every displayed annual period**: revenue, net income, operating cash flow, capex, assets, liabilities, cash, debt, gross profit, operating income and equity. Availability requires all of:
+The fixed completeness denominator is **11 fields × every displayed annual period**: revenue, net income, operating cash flow, capex, assets, liabilities, cash, debt, gross profit, operating income and equity. Full financial coverage requires all of:
 
 - Strictly more than 90% populated observations across the full displayed period set.
 - At least two comparable annual periods.

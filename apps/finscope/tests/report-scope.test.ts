@@ -49,7 +49,8 @@ test("sparse annual facts produce a partial report and selectable search result 
   assert.ok(report.scope?.missing.includes("Cash flow"));
   const search = await market.searchCompanies("PART", { env, fetcher });
   assert.equal(scope.canGenerateCompany(search[0]), true);
-  assert.equal(search[0].coverage?.reportLevel, "partial");
+  assert.equal(search[0].discoveryOnly, true);
+  assert.equal(search[0].coverage, undefined, "Discovery does not hydrate or advertise report coverage");
 });
 
 test("unavailable company facts fall back to validated identity and original registration filings", async () => {
@@ -72,7 +73,8 @@ test("unavailable company facts fall back to validated identity and original reg
   assert.ok(report.scope?.limitations.some(value => value.includes("could not be retrieved or normalized")));
   const search = await market.searchCompanies("BASIC", { env, fetcher });
   assert.equal(scope.canGenerateCompany(search[0]), true);
-  assert.equal(search[0].coverage?.reportLevel, "basic");
+  assert.equal(search[0].discoveryOnly, true);
+  assert.equal(search[0].coverage, undefined);
 });
 
 test("mismatched issuer identity or missing original filings cannot produce a basic report", async () => {
@@ -80,9 +82,22 @@ test("mismatched issuer identity or missing original filings cannot produce a ba
     const fetcher = fetcherFor(symbol, options);
     await assert.rejects(() => market.generateReport(symbol, { env, fetcher }), { code: "PROVIDER_ERROR" });
     const search = await market.searchCompanies(symbol, { env, fetcher });
-    assert.equal(scope.canGenerateCompany(search[0]), false);
+    assert.equal(scope.canGenerateCompany(search[0]), true, "A directory entry permits requesting a report; retrieval still fails closed above");
+    assert.equal(search[0].discoveryOnly, true);
+    assert.equal(search[0].coverage, undefined);
   }
   await assert.rejects(() => market.generateReport("DOESNOTEXIST", { env, fetcher: fetcherFor("BASIC") }), { code: "UNKNOWN_SYMBOL" });
+});
+
+test("metadata discovery permits valid issuer requests without certifying coverage", () => {
+  const company = { symbol: "FXVALID", cik: "123456", name: "Valid Issuer", nameEn: "Valid Issuer", exchange: "NYSE", sector: "Test", color: "#000", mark: "V", discoveryOnly: true };
+  assert.equal(scope.canGenerateCompany(company), true);
+  assert.equal(scope.canGenerateCompany({ ...company, cik: undefined }), false);
+  assert.equal(scope.canGenerateCompany({ ...company, cik: "../../../internal" }), false);
+  assert.equal(scope.canGenerateCompany({ ...company, symbol: "A/B" }), false);
+  assert.equal(scope.canGenerateCompany({ ...company, cik: undefined, discoveryProvider: "fmp" }), true);
+  assert.equal(scope.canGenerateCompany({ ...company, cik: undefined, discoveryProvider: "fmp", symbol: "../internal" }), false);
+  assert.equal(scope.canGenerateCompany({ ...company, discoveryOnly: false }), false);
 });
 
 test("the full-report threshold remains strict and legacy cached evidence receives explicit scope", async () => {

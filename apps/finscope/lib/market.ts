@@ -2,7 +2,7 @@ import { COMPANIES, getCompany, searchLocalCompanies } from "./companies";
 import { DIRECT_ISSUERS, IssuerDataError, retrieveIssuerFinancials } from "./issuer-financials";
 import { parseSecFinancials } from "./sec-financials";
 import { getCompanyContext } from "./company-context";
-import { getReportScope } from "./report-scope";
+import { canGenerateCompany, getReportScope } from "./report-scope";
 import { companySearchTerm, frenchAliasSymbols, normalizeCompanySearch } from "./company-search";
 import type { Company, DataCoverage, FinancialPeriod, Insight, Report, ReportMetrics, Source } from "./types";
 import type { EvidenceCache } from "./market-storage";
@@ -154,7 +154,7 @@ const cache = new Map<string, { expires: number; data: unknown }>();
 const inFlight = new Map<string, Promise<unknown>>();
 let secQueue: Promise<void> = Promise.resolve();
 let lastSecRequest = 0;
-async function fetchJson(url: string, options: ServiceOptions, headers: Record<string, string> = {}, ttl = 0): Promise<unknown> {
+async function fetchJson(url: string, options: ServiceOptions, headers: Record<string, string> = {}, ttl = 0, timeoutMs = 18_000): Promise<unknown> {
   const cached = cache.get(url);
   if (cached && cached.expires > Date.now()) return cached.data;
   if (inFlight.has(url)) return inFlight.get(url)!;
@@ -169,7 +169,7 @@ async function fetchJson(url: string, options: ServiceOptions, headers: Record<s
       secQueue = slot.catch(() => undefined);
       await slot;
     }
-    const response = await (options.fetcher ?? fetch)(url, { headers: { Accept: "application/json", ...headers }, signal: AbortSignal.timeout(18_000), redirect: "manual" });
+    const response = await (options.fetcher ?? fetch)(url, { headers: { Accept: "application/json", ...headers }, signal: AbortSignal.timeout(timeoutMs), redirect: "manual" });
     if (!response.ok) throw new MarketDataError("PROVIDER_ERROR", `Data provider unavailable (HTTP ${response.status}). Please retry later.`);
     // Bound raw provider memory; normalized statements are the only shared cache payload.
     if (Number(response.headers.get("Content-Length") || 0) > 24_000_000 || !response.body) throw new MarketDataError("INVALID_DATA", "The filing payload exceeds the supported size.");
@@ -196,7 +196,7 @@ function secHeaders(options: ServiceOptions): Record<string, string> {
 async function secDirectory(options: ServiceOptions): Promise<Company[]> {
   const saved = await options.cache?.get("sec:directory:v2");
   if (Array.isArray(saved)) return saved as Company[];
-  const raw = await fetchJson("https://www.sec.gov/files/company_tickers_exchange.json", options, secHeaders(options), 43_200_000);
+  const raw = await fetchJson("https://www.sec.gov/files/company_tickers_exchange.json", options, secHeaders(options), 43_200_000, 5_000);
   if (!raw || typeof raw !== "object") throw new MarketDataError("INVALID_DATA", "The SEC issuer directory is unavailable.");
   const directory = raw as { fields?: string[]; data?: unknown[][] };
   const rows = directory.fields && Array.isArray(directory.data) ? directory.data.map(values => Object.fromEntries(directory.fields!.map((key, i) => [key, values[i]]))) : Object.values(raw);
@@ -284,7 +284,7 @@ async function secFinancialEvidence(company: Company, options: ServiceOptions): 
     const report: Report = { id: crypto.randomUUID(), symbol: company.symbol, company: { ...company, coverage }, generatedAt: retrievedAt, retrievedAt, dataAsOf: financials.dataAsOf, mode: "live", dataKind: "provider", currency: financials.currency, periods: financials.periods, statements: financials.statements, provider: "SEC EDGAR", coverage, fieldSources,
       metrics, insights: buildInsights(financials.periods, false, metrics),
       sources: [{ label: "SEC EDGAR · Structured company financial facts", url, asOf: financials.filedAt }, ...filings],
-      note: `Standardized annual financial summaries from SEC company facts, in millions of ${financials.currency}. These are selected entity-wide concepts, not the issuer's complete audited statements or footnotes. Availability measures the same 11 core fields across all displayed years; only reports above 90% with current core totals are recommended. Derived values retain their calculation and original filing. Missing data is never assumed to be zero. Public evidence may be cached for up to 15 minutes; retrieval time is separate from fiscal period and report creation time. Debt includes finance leases where identified in the source. Published filings are periodic disclosures, not live market quotes.` };
+      note: `Standardized annual financial summaries from SEC company facts, in millions of ${financials.currency}. These are selected entity-wide concepts, not the issuer's complete audited statements or footnotes. Coverage measures the same 11 core fields across all displayed years; full coverage requires more than 90% with current core totals. Coverage is assessed when a report is generated, not when a company appears in search or suggestions. Derived values retain their calculation and original filing. Missing data is never assumed to be zero. Public evidence may be cached for up to 15 minutes; retrieval time is separate from fiscal period and report creation time. Debt includes finance leases where identified in the source. Published filings are periodic disclosures, not live market quotes.` };
     if (!options.fetcher) {
       if (evidenceMemory.size >= 50) evidenceMemory.delete(evidenceMemory.keys().next().value!);
       evidenceMemory.set(key, { expires: Date.now() + FINANCIAL_TTL, report });
@@ -294,17 +294,6 @@ async function secFinancialEvidence(company: Company, options: ServiceOptions): 
   })();
   evidencePending.set(key, pending);
   try { return await pending; } finally { evidencePending.delete(key); }
-}
-
-async function checkCompany(company: Company, options: ServiceOptions): Promise<Company> {
-  try {
-    const report = company.cik && environment("SEC_USER_AGENT", options) ? await secFinancialEvidence(company, options) : await generateReport(company.symbol, { ...options, allowDemoFallback: false });
-    const coverage = report.coverage ?? assessCoverage(report.periods, report.dataAsOf, report.retrievedAt ?? report.generatedAt);
-    return { ...company, coverage };
-  } catch {
-    const basic = await basicCompanyReport(company, options, false);
-    return { ...company, coverage: basic?.coverage ?? unavailableCoverage("Company information and financial disclosures could not be verified from the connected sources. Please retry later.") };
-  }
 }
 
 function matchScore(company: Company, term: string, aliasSymbols: Set<string>): number {
@@ -325,36 +314,39 @@ export async function searchCompanies(query: string, options: ServiceOptions & {
   const limit = Math.min(12, Math.max(1, options.limit ?? 8));
   if (options.live === false) return searchLocalCompanies(term, limit);
   assertServer();
-  const all = environment("SEC_USER_AGENT", options) ? await secDirectory(options) : [];
-  const aliases = searchLocalCompanies(term, limit);
+  const hasSec = Boolean(environment("SEC_USER_AGENT", options));
+  const hasGlobal = Boolean(environment("FMP_API_KEY", options));
+  // Discovery is metadata only. Financial evidence is retrieved by generateReport.
+  const metadata = (companies: Company[]) => companies
+    .map(({ coverage: _coverage, ...company }) => ({ ...company, discoveryOnly: true }))
+    .filter(canGenerateCompany)
+    .slice(0, limit);
   let candidates: Company[];
   if (term) {
+    const all = hasSec ? await secDirectory(options) : [];
+    const aliases = searchLocalCompanies(term, limit)
+      .filter(company => hasSec || hasGlobal || company.symbol === "MSFT")
+      .map(company => !company.cik && hasGlobal ? { ...company, discoveryProvider: "fmp" as const } : company);
     const aliasSymbols = new Set([...aliases.map(c => c.symbol),...frenchAliasSymbols(term)]);
     const normalized=companySearchTerm(term).toUpperCase();
     const ranked = all.map(company => ({ company, score: matchScore(company, normalized, aliasSymbols) })).filter(item => item.score > 0).sort((a,b) => b.score - a.score);
     const exact = ranked.find(item => item.company.symbol.toUpperCase() === term.toUpperCase());
     candidates = exact ? [exact.company] : ranked.slice(0, limit).map(item => item.company);
     if (!exact) for (const company of aliases) if (!candidates.some(c => c.symbol === company.symbol) && candidates.length < limit) candidates.push(company);
-    if (environment("FMP_API_KEY", options) && !candidates.length) {
+    if (hasGlobal && !candidates.length) {
       const found = await fmp("search-name", { query: term, limit: String(limit) }, options);
-      candidates = found.map(providerCompany).filter((c): c is Company => Boolean(c));
+      candidates = found.map(providerCompany).filter((c): c is Company => Boolean(c)).map(company => ({ ...company, discoveryProvider: "fmp" }));
     }
   } else {
     const groups: Record<string, string[]> = { Technology: ["Semiconductors", "Software & cloud", "Internet & platforms", "Consumer technology"], "Consumer & health": ["Consumer & retail", "Healthcare"], Financials: ["Financial services"], "Energy & industrials": ["Energy", "Industrials", "Energy transition"] };
     const sectors = groups[options.sector ?? ""];
     const followed = new Set((options.favorites ?? []).map(symbol => getCompany(symbol)?.sector).filter(Boolean));
-    // Familiar directory issuers seed ideas; every displayed recommendation is checked.
-    const known = COMPANIES.filter(c => c.cik && (!sectors || sectors.includes(c.sector))).map(c => all.find(d => d.symbol === c.symbol) ?? c);
+    // Opening the page must not download the directory or inspect any filings.
+    const known = COMPANIES.filter(c => c.cik && (hasSec || hasGlobal || c.symbol === "MSFT") && (!sectors || sectors.includes(c.sector)));
     known.sort((a,b) => Number(followed.has(b.sector)) - Number(followed.has(a.sector)));
-    candidates = [...new Map([...known, ...(!sectors ? all.slice(0, 40) : [])].map(c => [c.symbol, c])).values()].slice(0, 24);
+    candidates = known;
   }
-  const verified: Company[] = [];
-  // Serial batches avoid loading many multi-megabyte XBRL documents in one isolate.
-  for (let i = 0; i < candidates.length && verified.length < limit; i += 2) {
-    const batch = await Promise.all(candidates.slice(i, i + 2).map(company => checkCompany(company, options)));
-    verified.push(...(term ? batch : batch.filter(company => company.coverage?.status === "available")));
-  }
-  return verified.slice(0, limit);
+  return metadata(candidates);
 }
 
 /** Join all FMP statements by the exact fiscal end date and currency, not array position. */

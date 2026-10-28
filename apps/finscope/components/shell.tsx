@@ -9,6 +9,7 @@ import type { TranslationValues } from '@/lib/i18n';
 import type { Company, Viewer } from '@/lib/types';
 import CompanyMark from './company-mark';
 import { canGenerateCompany } from '@/lib/report-scope';
+import { loadCompanyDirectory } from '@/lib/company-directory-request';
 import './guest-access.css';
 
 export async function api<T>(path: string, options?: RequestInit): Promise<T> {
@@ -21,6 +22,7 @@ const AppContext = createContext<{viewer: Viewer | null; accountError: string; r
 export const useApp = () => useContext(AppContext);
 export function Brand() {const {t}=useI18n();return <Link href="/" className="brand" aria-label={t("Finscope home")}><span className="brand-symbol"><svg viewBox="0 0 32 32" fill="none"><path d="M5 18C10 4 21 4 27 14M5 25C10 11 21 11 27 21" stroke="currentColor" strokeWidth="3.7" strokeLinecap="round"/><circle cx="26" cy="5" r="2.2" fill="var(--pink-strong)"/></svg></span><strong>Finscope<span>{t("FINANCIAL PLANNING")}</span></strong></Link>}
 export function coverageLabel(company:Company,t:(source:string,values?:TranslationValues)=>string=(source,values)=>source.replace(/\{(\w+)\}/g,(_,key)=>String(values?.[key]??''))) {
+  if(company.discoveryOnly) return t('Coverage checked when you generate');
   if(company.coverage?.status==='available') return t('{percent}% core data · {years} years',{percent:Math.round(company.coverage.completeness),years:company.coverage.periods});
   if(canGenerateCompany(company)) return t(company.coverage?.reportLevel==='basic'?'Basic company report available':'Partial financial report available');
   return t('Not available');
@@ -36,7 +38,7 @@ export function CompanySearch({onSelect,placeholder='Search a company or ticker,
     if(!focused)return;
     const controller=new AbortController();setIndex(0);setItems([]);setError('');setBusy(true);
     const timer=setTimeout(()=>{
-      api<{companies:Company[]}>(`/api/companies?q=${encodeURIComponent(query.trim())}`,{signal:controller.signal})
+      loadCompanyDirectory(`/api/companies?q=${encodeURIComponent(query.trim())}`,controller.signal)
         .then(data=>{if(!controller.signal.aborted)setItems(data.companies.slice(0,8));})
         .catch(failure=>{if(!controller.signal.aborted)setError((failure as Error).message);})
         .finally(()=>{if(!controller.signal.aborted)setBusy(false);});
@@ -46,9 +48,9 @@ export function CompanySearch({onSelect,placeholder='Search a company or ticker,
   const choose=(company:Company)=>{if(!canGenerateCompany(company))return;onSelect(company);setQuery('');setFocused(false);};
   return <div className="company-search">
     <div className={`search-field ${focused?'focused':''}`}><Search size={21}/><input aria-label={t("Search companies")} role="combobox" aria-expanded={focused} aria-controls={resultsId} aria-autocomplete="list" autoFocus={autoFocus} value={query} placeholder={t(placeholder)} onFocus={showResults} onClick={showResults} onBlur={()=>{blurTimer.current=setTimeout(()=>setFocused(false),160);}} onChange={e=>{setQuery(e.target.value);showResults();}} onKeyDown={e=>{if(e.key==='ArrowDown'){e.preventDefault();setIndex(i=>Math.min(items.length-1,i+1));}if(e.key==='ArrowUp'){e.preventDefault();setIndex(i=>Math.max(0,i-1));}if(e.key==='Enter'&&items[index]){e.preventDefault();choose(items[index]);}if(e.key==='Escape')setFocused(false);}}/>{query?<button className="icon-button" aria-label={t("Clear search")} onClick={()=>setQuery('')}><X size={16}/></button>:<kbd>⌘ K</kbd>}</div>
-    {focused&&<div className="search-results" id={resultsId}><div className="search-results-label" role="status">{t(busy?'Checking company data…':query?'Company directory':'Companies with verified financial data')}</div>
-      {error?<div className="search-feedback" role="alert"><p>{t(error)}</p><button className="text-link" onMouseDown={e=>e.preventDefault()} onClick={()=>setRetry(value=>value+1)}>{t("Try again")}</button></div>:busy?<p className="muted empty-small">{t("Checking the latest available filings and report coverage.")}</p>:items.length?items.map((company,i)=><div className="search-result-container" key={`${company.exchange}:${company.symbol}`}><button className={`search-result ${i===index?'highlight':''}`} disabled={!canGenerateCompany(company)} title={company.coverage?.reason?t(company.coverage.reason):undefined} onMouseDown={e=>e.preventDefault()} onClick={()=>choose(company)}><CompanyMark symbol={company.symbol} size={33} color={company.color} mark={company.mark}/><span><strong>{company.name}</strong><small>{company.exchange} · {coverageLabel(company,t)}</small>{!canGenerateCompany(company)&&company.coverage?.reason&&<small className="search-coverage-reason">{t(company.coverage.reason)}</small>}</span><span className="mono">{company.symbol}</span><ArrowUpRight size={16}/></button>{!canGenerateCompany(company)&&company.cik&&<a className="search-source-link" href={'https://www.sec.gov/edgar/browse/?CIK='+encodeURIComponent(company.cik)+'&owner=exclude'} target="_blank" rel="noopener noreferrer" onMouseDown={e=>e.preventDefault()}>{t("View original company filings")} <ArrowUpRight size={12}/></a>}</div>):<p className="muted empty-small">{t("No verified matches. Try the company’s full name or exchange ticker.")}</p>}
-      <div className="search-institution">{t("Select up to three companies with verified report coverage.")}</div>
+    {focused&&<div className="search-results" id={resultsId}><div className="search-results-label" role="status">{t(busy?'Loading company directory…':query?'Company directory':'Companies to explore')}</div>
+      {error?<div className="search-feedback" role="alert"><p>{t(error)}</p><button className="text-link" onMouseDown={e=>e.preventDefault()} onClick={()=>setRetry(value=>value+1)}>{t("Try again")}</button></div>:busy?<p className="muted empty-small">{t("Loading company names and ticker symbols.")}</p>:items.length?items.map((company,i)=><div className="search-result-container" key={`${company.exchange}:${company.symbol}`}><button className={`search-result ${i===index?'highlight':''}`} disabled={!canGenerateCompany(company)} title={company.coverage?.reason?t(company.coverage.reason):undefined} onMouseDown={e=>e.preventDefault()} onClick={()=>choose(company)}><CompanyMark symbol={company.symbol} size={33} color={company.color} mark={company.mark}/><span><strong>{company.name}</strong><small>{company.exchange} · {coverageLabel(company,t)}</small>{!canGenerateCompany(company)&&company.coverage?.reason&&<small className="search-coverage-reason">{t(company.coverage.reason)}</small>}</span><span className="mono">{company.symbol}</span><ArrowUpRight size={16}/></button>{!canGenerateCompany(company)&&company.cik&&<a className="search-source-link" href={'https://www.sec.gov/edgar/browse/?CIK='+encodeURIComponent(company.cik)+'&owner=exclude'} target="_blank" rel="noopener noreferrer" onMouseDown={e=>e.preventDefault()}>{t("View original company filings")} <ArrowUpRight size={12}/></a>}</div>):<p className="muted empty-small">{t("No matching companies. Try the company’s full name or exchange ticker.")}</p>}
+      <div className="search-institution">{t("Select up to three companies. Financial data loads when you generate a report.")}</div>
     </div>}
   </div>;
 }

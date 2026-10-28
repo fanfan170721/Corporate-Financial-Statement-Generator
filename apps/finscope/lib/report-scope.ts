@@ -1,6 +1,8 @@
 import type { Company, FinancialPeriod, Report, ReportScope } from "./types";
 
 export function canGenerateCompany(company: Company): boolean {
+  // Directory metadata permits a request, but does not certify financial coverage.
+  if (company.discoveryOnly) return (/^\d{1,10}$/.test(company.cik ?? "") || company.discoveryProvider === "fmp") && /^[A-Za-z0-9.^-]{1,20}$/.test(company.symbol);
   return company.coverage?.reportAvailable ?? company.coverage?.status === "available";
 }
 

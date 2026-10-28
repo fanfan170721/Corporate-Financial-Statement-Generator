@@ -40,31 +40,39 @@ function transport(options: { empty?: boolean; status?: number } = {}) {
   return { fetcher, requested };
 }
 
-test("directory discovery searches issuers outside the curated catalogue and verifies actual financials", async () => {
+test("directory discovery finds issuers without financial retrieval until generation", async () => {
   const market = await load();
   const f = transport();
   const results = await market.searchCompanies("Fixture Alpha", { env, fetcher: f.fetcher, live: true });
   assert.equal(results.length, 1);
   assert.equal(results[0].symbol, "FXALPHA");
   assert.equal(results[0].exchange, "NASDAQ");
-  assert.equal(results[0].coverage?.status, "available");
-  assert.equal(results[0].coverage?.completeness, 100);
-  assert.ok(f.requested.some(url => url.endsWith("CIK0000000111.json")));
-  assert.equal(f.requested.some(url => url.includes("submissions")), false, "Autocomplete must not fetch optional company context");
+  assert.equal(results[0].discoveryOnly, true);
+  assert.equal(results[0].coverage, undefined, "Discovery must not claim verified financial coverage");
+  assert.deepEqual(f.requested, ["https://www.sec.gov/files/company_tickers_exchange.json"]);
+  const report = await market.generateReport("FXALPHA", { env, fetcher: f.fetcher });
+  assert.equal(report.coverage?.status, "available");
+  assert.equal(report.coverage?.completeness, 100);
+  assert.ok(f.requested.some(url => url.includes("companyfacts")));
+  assert.ok(f.requested.some(url => url.includes("submissions")));
 });
 
-test("French aliases and accent-insensitive names retain current directory identities and verification", async () => {
+test("French aliases and accent-insensitive names retain current directory identities without filing requests", async () => {
   const market = await load();
   const f = transport();
   for (const query of ["Banque Royale du Canada", "société Banque Royale du Canada"]) {
     const result = await market.searchCompanies(query, { env, fetcher:f.fetcher, live:true });
     assert.equal(result[0]?.symbol,"RY");
     assert.equal(Number(result[0]?.cik),444);
-    assert.equal(result[0]?.coverage?.status,"available");
+    assert.equal(result[0]?.discoveryOnly,true);
+    assert.equal(result[0]?.coverage,undefined);
   }
   const result = await market.searchCompanies("Quebec Manufacturing", { env, fetcher:f.fetcher, live:true });
   assert.equal(result[0]?.symbol,"FXQC");
-  assert.ok(f.requested.some(url=>url.endsWith("CIK0000000555.json")));
+  assert.deepEqual(f.requested, ["https://www.sec.gov/files/company_tickers_exchange.json"], "The directory is cached across searches; facts and filings remain deferred");
+  const report = await market.generateReport("RY", { env, fetcher: f.fetcher });
+  assert.equal(report.company.cik, "444", "Generation must retain the current directory identity rather than the curated catalogue's older CIK");
+  assert.ok(f.requested.some(url => url.includes("companyfacts/CIK0000000444.json")));
 });
 
 test("a directory match and configured contact cannot falsely make missing or failing evidence ready", async () => {
@@ -72,9 +80,11 @@ test("a directory match and configured contact cannot falsely make missing or fa
     const market = await load();
     const results = await market.searchCompanies("FXALPHA", { env, fetcher: fixture.fetcher, live: true });
     assert.equal(results.length, 1);
-    assert.equal(results[0].coverage?.status, "unavailable");
-    assert.equal(results[0].coverage?.completeness, 0);
-    assert.ok(results[0].coverage?.reason);
+    assert.equal(results[0].discoveryOnly, true);
+    assert.equal(results[0].coverage, undefined);
+    assert.equal(fixture.requested.length, 1, "Search never attempts missing or failing financial evidence");
+    await assert.rejects(() => market.generateReport("FXALPHA", { env, fetcher: fixture.fetcher }), error => error instanceof market.MarketDataError && ["NO_DATA", "PROVIDER_ERROR"].includes(error.code));
+    assert.ok(fixture.requested.some(url => url.includes("companyfacts")));
   }
 });
 
@@ -87,14 +97,83 @@ test("an exact security symbol selects its own class while shared issuer evidenc
   const second = await market.searchCompanies("FXD-B", { env, fetcher: f.fetcher, cache, live: true });
   assert.deepEqual(first.map(company => company.symbol), ["FXD-A"]);
   assert.deepEqual(second.map(company => company.symbol), ["FXD-B"]);
-  assert.equal(second[0].coverage?.status, "available");
-  assert.equal(f.requested.filter(url => url.includes("companyfacts")).length, 1, "Financial statements are issuer-level public evidence");
+  assert.equal(second[0].discoveryOnly, true);
+  assert.equal(second[0].coverage, undefined);
+  assert.equal(f.requested.filter(url => url.includes("companyfacts")).length, 0);
+  const firstReport = await market.generateReport("FXD-A", { env, fetcher: f.fetcher, cache });
+  assert.equal(firstReport.company.symbol, "FXD-A");
   const report = await market.generateReport("FXD-B", { env, fetcher: f.fetcher, cache });
+  assert.equal(f.requested.filter(url => url.includes("companyfacts")).length, 1, "Explicit generation shares issuer evidence without mixing security classes");
   assert.equal(report.symbol, "FXD-B");
   assert.equal(report.company.symbol, "FXD-B");
   assert.equal(report.provider, "SEC EDGAR");
   assert.equal(report.mode, "live");
   assert.equal(report.ai, undefined);
+});
+
+test("recommendations use local metadata only, with a twelve-company maximum and no cache hydration", async () => {
+  const market = await load();
+  const unexpected = async () => { throw new Error("Recommendation discovery must not contact any provider or hydrate financial caches"); };
+  const options = { env, fetcher: unexpected as typeof fetch, cache: { get: unexpected, set: unexpected, reserveSec: unexpected } };
+  const results = await market.searchCompanies("", { ...options, limit: 100 });
+  assert.equal(results.length, 12);
+  assert.ok(results.every(company => company.discoveryOnly && company.cik && !company.coverage));
+  assert.equal(new Set(results.map(company => company.symbol)).size, results.length);
+  const financials = await market.searchCompanies("", { ...options, sector: "Financials", favorites: ["JPM"] });
+  assert.ok(financials.length > 0);
+  assert.ok(financials.every(company => company.sector === "Financial services"));
+  const unconfigured = await market.searchCompanies("", { ...options, env: { SEC_USER_AGENT: "", FMP_API_KEY: "" } });
+  assert.deepEqual(unconfigured.map(company => company.symbol), ["MSFT"], "Only the direct issuer adapter is offered when market providers are not connected");
+});
+
+test("shared directory cache serves typed discovery without financial cache reads or network calls", async () => {
+  const market = await load();
+  const reads: string[] = [];
+  const company = { symbol: "FXCACHE", cik: "777", name: "Cached Directory", nameEn: "Cached Directory", exchange: "NYSE", sector: "Public company", color: "#7199bf", mark: "FX" };
+  const unexpected = async () => { throw new Error("Cached directory discovery must not perform network work"); };
+  const result = await market.searchCompanies("FXCACHE", { env, fetcher: unexpected as typeof fetch, cache: { get: async key => { reads.push(key); return [company]; }, set: unexpected, reserveSec: unexpected } });
+  assert.deepEqual(reads, ["sec:directory:v2"]);
+  assert.equal(result[0]?.symbol, "FXCACHE");
+  assert.equal(result[0]?.discoveryOnly, true);
+  assert.equal(result[0]?.coverage, undefined);
+});
+
+test("configured FMP discovery preserves international issuers without a CIK and defers statements until generation", async () => {
+  const market = await load();
+  const scope = await import(await moduleUrl("report-scope")) as typeof import("../lib/report-scope");
+  const requested: string[] = [];
+  const company = { symbol: "FXINT.TO", name: "Fixture International Corporation", exchange: "TSX" };
+  const rows = [2024, 2025].map(year => ({ date: `${year}-12-31`, period: "FY", reportedCurrency: "CAD", revenue: 100_000_000, netIncome: 20_000_000, grossProfit: 60_000_000, operatingIncome: 30_000_000, totalAssets: 200_000_000, totalLiabilities: 80_000_000, cashAndCashEquivalents: 30_000_000, totalDebt: 40_000_000, totalStockholdersEquity: 120_000_000, operatingCashFlow: 25_000_000, capitalExpenditure: -5_000_000 }));
+  const fetcher = (async (input: string | URL | Request) => {
+    const url = new URL(String(input));
+    assert.equal(url.hostname, "financialmodelingprep.com");
+    requested.push(url.pathname);
+    if (url.pathname === "/stable/search-name") return Response.json([company, { ...company, symbol: "../invalid" }]);
+    if (url.pathname === "/stable/search-symbol") return Response.json([company]);
+    assert.ok(["/stable/income-statement", "/stable/balance-sheet-statement", "/stable/cash-flow-statement"].includes(url.pathname));
+    assert.equal(url.searchParams.get("symbol"), company.symbol);
+    return Response.json(rows);
+  }) as typeof fetch;
+  const options = { env: { SEC_USER_AGENT: "", FMP_API_KEY: "fixture-key" }, fetcher };
+  const results = await market.searchCompanies("Fixture International", options);
+  assert.equal(results.length, 1, "Malformed provider symbols remain excluded");
+  assert.equal(results[0].symbol, company.symbol);
+  assert.equal(results[0].cik, undefined);
+  assert.equal(results[0].discoveryOnly, true);
+  assert.equal(results[0].discoveryProvider, "fmp");
+  assert.equal(results[0].coverage, undefined);
+  assert.equal(scope.canGenerateCompany(results[0]), true);
+  assert.deepEqual(requested, ["/stable/search-name"], "Discovery fetches names only, not financial statements");
+  const report = await market.generateReport(company.symbol, options);
+  assert.equal(report.symbol, company.symbol);
+  assert.equal(report.currency, "CAD");
+  assert.equal(report.provider, "Financial Modeling Prep");
+  assert.equal(report.coverage?.completeness, 100);
+  assert.equal(report.mode, "live");
+  assert.equal(requested.filter(path => path.endsWith("-statement")).length, 3);
+  const aliases = await market.searchCompanies("腾讯", options);
+  assert.equal(aliases[0]?.symbol, "0700.HK");
+  assert.equal(scope.canGenerateCompany(aliases[0]), true, "Curated international aliases remain selectable with a configured global provider");
 });
 
 test("unknown names and hostile security strings never become arbitrary upstream URLs", async () => {

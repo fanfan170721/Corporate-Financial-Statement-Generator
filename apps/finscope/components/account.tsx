@@ -85,7 +85,8 @@ export function MethodologyPage() {
         <div className="methodology-layout">
             <article className="method-card panel">
                 <span className="eyebrow">{t("01 / THE EVIDENCE")}</span><h2>{t("Start at the source.")}</h2>
-                <p>{t("Financial reports use structured SEC filings, with original filing links and fiscal dates. Supported companies meet the required coverage and recency checks; additional providers may extend coverage. Published statements are periodic disclosures, not real-time market data.")}</p>
+                <p>{t("Search and recommendations use company directory information only. Financial data and filing evidence are retrieved and their coverage checked when you generate a report.")}</p>
+                <p>{t("Reports identify their scope as broad financial coverage, partial financial coverage or a basic company profile. Each includes source links, available reporting periods and any missing data. Published statements are periodic disclosures, not real-time market data.")}</p>
                 <ul><li>{t("Fiscal periods are aligned by their actual dates.")}</li><li>{t("Missing values remain null; they are never backfilled with zero.")}</li><li>{t("Source dates, currencies and units travel with each report.")}</li><li>{t("Curated case studies are dated snapshots, separate from on-demand retrieval.")}</li></ul>
                 <a href="https://www.sec.gov/search-filings/edgar-application-programming-interfaces" target="_blank" rel="noopener noreferrer">{t("SEC data documentation ↗")}</a>
             </article>

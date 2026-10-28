@@ -61,6 +61,15 @@ The verified administrator access release is Sites version **19**. It exempts ve
 - Runtime environment revision 5 closes temporary bootstrap/linking (`OWNER_SETUP_ENABLED=false`, `AUTH_TRUST_SITES_IDENTITY=false`) after verified account management succeeded. Keep `AUTH_SECRET`, encryption keys and existing provider credentials unchanged. Anonymous admin and AI-settings requests return 401; bootstrap returns 404.
 - Source checkpoint: `release-admin-access-v19`. The previous scope checkpoint and all older tags remain intact. Post-deployment documentation records the verification outcomes; runtime code matches the published source.
 
+The on-demand discovery release is Sites version **20**. Recommendations return curated company metadata without external requests. Typed search loads the cached directory only; financial facts, filing history and annual documents wait for an explicit report-generation request. Discovery labels show pending coverage in English and French. Directory UI requests have an eight-second timeout and retry; financial generation timeouts are unchanged. No database migration or runtime configuration change was needed.
+
+- Saved version: `appgprj_6adfe53d05bc8191983062a369584a6a~appgver_948691fddbe08191b8d6761bbe99d163`
+- Published source: `80f56c374e8caa7639f6b91f2a99d75be666fba9`
+- Successful deployment: `appgdep_6ae18425b8ac81918b937830578a5b72`
+- Deployment archive: `outputs/finscope-lazy-discovery-v20.tar.gz` (ignored by Git).
+- Verification: 140 tests, TypeScript and production build passed. Discovery tests assert zero recommendation network/cache requests, directory-only search and evidence retrieval at explicit generation; FMP international metadata and French aliases remain supported. Local production-build requests returned 12 pending-coverage suggestions in 55 ms and exact NVIDIA metadata in 140 ms. Production checks returned suggestions in 618 ms, the financial sector in 593 ms and NVIDIA metadata in 789 ms; all returned HTTP 200. These are individual observations, not latency guarantees. No paid AI request was used.
+- Source checkpoint: `release-lazy-discovery-v20`; the previous `release-admin-access-v19` tag remains available for rollback. Runtime environment revision remains 5.
+
 Fetch the tag, then open it in a separate directory rather than resetting the current checkout:
 
 ```sh
