@@ -17,7 +17,8 @@ export function getReportScope(report: Report): ReportScope {
     ["Assets and liabilities", has(["assets", "liabilities", "equity", "cash", "debt"])],
     ["Cash flow", has(["operatingCashFlow", "capex"])],
     ["Calculated financial ratios", Object.values(report.metrics).some(value => value !== null && Number.isFinite(value))],
-    ["Reported employee count", report.profile?.employees?.value !== undefined],
+    [report.profile?.employees?.basis === "full-time-equivalent" ? "Reported full-time equivalents" : "Reported employee count", report.profile?.employees?.value !== undefined],
+    ["Historical workforce disclosures", (report.profile?.employeeHistory?.length ?? 0) > 1],
   ];
   const level: ReportScope["level"] = !financials ? "basic" : report.coverage?.status === "available" || (!report.coverage && report.periods.length >= 2 && report.periods.every(period => Object.values(period).every(value => value !== null))) ? "full" : "partial";
   const limitations = [

@@ -254,13 +254,12 @@ function validateReportCoverage(symbols: string[], mode: "demo" | "live") {
 }
 
 async function buildFinancialReports(symbols: string[], mode: "demo" | "live"): Promise<Report[]> {
-  const settled = await Promise.allSettled(symbols.map(async (symbol) => {
+  const reports: Report[] = [];
+  for (const symbol of symbols) {
     const base = mode === "demo" ? getDemoReport(symbol) : await generateReport(symbol, { allowDemoFallback: false, env: providerEnv(), cache: evidenceStorage(database()) });
-    return { ...base, id: crypto.randomUUID(), generatedAt: new Date().toISOString() } as Report;
-  }));
-  const failure = settled.find((result) => result.status === "rejected");
-  if (failure?.status === "rejected") throw failure.reason;
-  return settled.map((result) => (result as PromiseFulfilledResult<Report>).value);
+    reports.push({ ...base, id: crypto.randomUUID(), generatedAt: new Date().toISOString() });
+  }
+  return reports;
 }
 
 async function createGuestReports(guest: GuestActor, symbols: string[], mode: "demo" | "live"): Promise<Report[]> {

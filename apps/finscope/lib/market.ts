@@ -381,16 +381,23 @@ async function resolveCompany(symbol: string, options: ServiceOptions): Promise<
   throw new MarketDataError("UNKNOWN_SYMBOL", "Company not found. Search again and select the matching exchange.");
 }
 
+let contextQueue: Promise<unknown> = Promise.resolve();
 async function enrichReport(report: Report, options: ServiceOptions, includeEmployees = true): Promise<Report> {
+  const pending = contextQueue.then(() => enrichReportSequential(report, options, includeEmployees));
+  contextQueue = pending.catch(() => undefined);
+  return pending;
+}
+async function enrichReportSequential(report: Report, options: ServiceOptions, includeEmployees = true): Promise<Report> {
   const cik = report.company.cik;
   if (!cik || !environment("SEC_USER_AGENT", options)) return { ...report, scope: getReportScope(report) };
-  const key = `sec:context:v2:${includeEmployees ? "full" : "basic"}:${cik}`;
+  const key = `sec:context:v4:${includeEmployees ? "full" : "basic"}:${cik}`;
   try {
     let context = await options.cache?.get(key) as Awaited<ReturnType<typeof getCompanyContext>> | undefined;
     if (!context) {
       context = await getCompanyContext(cik, {
         currency: report.currency,
-        fetchJson: url => fetchJson(url, options, secHeaders(options)),
+        cache: options.cache,
+        fetchJson: url => fetchJson(url, options, secHeaders(options), 0, 5_000),
         fetchText: includeEmployees ? async url => {
           if (!/^https:\/\/www\.sec\.gov\/Archives\/edgar\/data\/\d+\/\d+\/[A-Za-z0-9_.-]+$/.test(url)) throw new Error("Invalid filing address");
           await options.cache?.reserveSec();
@@ -398,13 +405,13 @@ async function enrichReport(report: Report, options: ServiceOptions, includeEmpl
           if (!response.ok || !response.body) throw new Error("Filing unavailable");
           const reader = response.body.getReader();
           const parts: Uint8Array[] = []; let size = 0;
-          try { while (true) { const chunk = await reader.read(); if (chunk.done) break; size += chunk.value.length; if (size > 8_000_000) throw new Error("Filing exceeds enrichment limit"); parts.push(chunk.value); } }
+          try { while (true) { const chunk = await reader.read(); if (chunk.done) break; size += chunk.value.length; if (size > 17_000_000) throw new Error("Filing exceeds enrichment limit"); parts.push(chunk.value); } }
           finally { await reader.cancel().catch(() => undefined); }
           const bytes = new Uint8Array(size); let offset = 0; for (const part of parts) { bytes.set(part, offset); offset += part.length; }
           return new TextDecoder().decode(bytes);
         } : undefined,
       });
-      if (context.sources.length) await options.cache?.set(key, context, FINANCIAL_TTL);
+      if (context.sources.length) await options.cache?.set(key, context, context.profile?.employeeCoverage?.retrievalFailures ? 60_000 : FINANCIAL_TTL);
     }
     const enriched = { ...report, ...(!report.periods.length && context.retrievedAt ? { retrievedAt: context.retrievedAt } : {}), profile: context.profile, filings: context.filings, sources: [...report.sources, ...context.sources] };
     return { ...enriched, scope: getReportScope(enriched) };

@@ -22,4 +22,12 @@ test("basic profile CSV preserves evidence and scope without inventing financial
  assert.doesNotMatch(csv,/PUBLISHED FINANCIAL STATEMENTS|Analytical metrics|Reporting currency|Financial period ending|Amounts in reporting-currency/);
  const translated=reportToCsv(report,value=>value==='Basic company profile'?'Profil de base de l’entreprise':value);
  assert.match(translated,/Profil de base de l’entreprise/);
+ report.profile!.employees={value:166000,asOf:"2025-09-27",basis:"full-time-equivalent",approximate:true,source:"https://example.test/annual-2025"};
+ report.profile!.employeeHistory=[{value:164000,asOf:"2023-09-30",basis:"full-time-equivalent",approximate:true,source:"https://example.test/annual-2023"},report.profile!.employees];
+ report.profile!.employeeCoverage={annualFilings:3,extracted:2,unavailablePeriods:["2024-09-28"],retrievalFailures:1};
+ const workforce=reportToCsv(report);
+ assert.match(workforce,/"Full-time equivalents","164000","Approximate","https:\/\/example.test\/annual-2023"/);
+ assert.match(workforce,/"Historical workforce disclosures","2024-09-28","Not available",""/);
+ assert.match(workforce,/"Full-time equivalents","166000","Approximate","https:\/\/example.test\/annual-2025"/);
+ assert.doesNotMatch(workforce,/"2024-09-28","Not available","0"|REPORTED TOTAL EMPLOYEES/);
 });

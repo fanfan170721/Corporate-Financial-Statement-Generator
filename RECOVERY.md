@@ -70,6 +70,15 @@ The on-demand discovery release is Sites version **20**. Recommendations return 
 - Verification: 140 tests, TypeScript and production build passed. Discovery tests assert zero recommendation network/cache requests, directory-only search and evidence retrieval at explicit generation; FMP international metadata and French aliases remain supported. Local production-build requests returned 12 pending-coverage suggestions in 55 ms and exact NVIDIA metadata in 140 ms. Production checks returned suggestions in 618 ms, the financial sector in 593 ms and NVIDIA metadata in 789 ms; all returned HTTP 200. These are individual observations, not latency guarantees. No paid AI request was used.
 - Source checkpoint: `release-lazy-discovery-v20`; the previous `release-admin-access-v19` tag remains available for rollback. Runtime environment revision remains 5.
 
+The workforce-history release is Sites version **21**. Annual-disclosure extraction supports full-time equivalents, full-/part-time counts, full-time people, verified issuer names and fiscal-year labels. Up to five annual periods feed distinct trend series with source links and honest gaps. Metadata retrieval handles frequent filers; annual documents are bounded at 17 MB and parsed sequentially. Compact observations cache for 30 days, missing extractions for 24 hours and transient retrieval failures for one minute. Multi-company requests execute sequentially. Normal account/guest allowances and administrator exemptions remain unchanged.
+
+- Saved version: `appgprj_6adfe53d05bc8191983062a369584a6a~appgver_41895b295bb881919f932b2785df0ed6`
+- Published source: `fefeb63f24f353740e5ee8f623d43af82bf4b983`
+- Successful deployment: `appgdep_6ae189dc6a5881918c6125d52c08ba41`
+- Deployment archive: `outputs/finscope-workforce-history-v21.tar.gz` (ignored by Git).
+- Verification: 153 full-suite tests, TypeScript and production build passed. Real-document checks produced five dated observations each for Apple, Microsoft, NVIDIA, Amazon and JPMorganChase (25 observations). This is a sample, not a universal-coverage claim. A new local guest-session test hit the existing shared-network limit; no limit or authentication bypass was applied. Production administrator generation then successfully saved Apple and Microsoft reports; both showed five annual observations, correct workforce bases, charts and individual source links in the browser. No paid AI call was used.
+- Source checkpoint: `release-workforce-history-v21`; the previous `release-lazy-discovery-v20` checkpoint remains available. No database migration or runtime environment change; environment revision remains 5.
+
 Fetch the tag, then open it in a separate directory rather than resetting the current checkout:
 
 ```sh

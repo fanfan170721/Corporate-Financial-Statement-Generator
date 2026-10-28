@@ -83,7 +83,7 @@ test("invalid numeric transformations and ambiguous totals do not invent a count
 
 test("dated annual disclosures preserve full-time versus total scope and short original evidence", () => {
   const total = "As of December 31, 2025, we had approximately 12,345 employees worldwide.";
-  assert.deepEqual(context.parseEmployeeDisclosure(`<h2>Human capital</h2><p>${total}</p>`, { periodEnd }), { value: 12345, asOf: periodEnd, basis: "total", evidence: total, method: "annual-disclosure" });
+  assert.deepEqual(context.parseEmployeeDisclosure(`<h2>Human capital</h2><p>${total}</p>`, { periodEnd }), { value: 12345, asOf: periodEnd, basis: "total", approximate: true, evidence: total, method: "annual-disclosure" });
   assert.equal(context.parseEmployeeDisclosure("The company employed 12,000 full-time employees as of December 31, 2025.", { periodEnd })?.basis, "full-time");
   assert.equal(context.parseEmployeeDisclosure("As of 31 December 2025, the company and its subsidiaries had 12345 employees.", { periodEnd })?.value, 12345);
   assert.equal(context.parseEmployeeDisclosure("At 2025-12-31, we employed about 12345 employees.", { periodEnd })?.value, 12345);
@@ -112,13 +112,13 @@ test("disclosure fallback is dated and contradictory inline totals cannot overri
   assert.equal(conflict.profile?.employees, undefined);
 });
 
-test("context retrieval uses injected transports and requests only the newest annual document", async () => {
+test("context retrieval collects bounded annual history while preserving latest observation", async () => {
   const requested: string[] = [];
   const result = await context.getCompanyContext(cik, {
     fetchJson: async url => { requested.push(url); return submissions(); },
     fetchText: async url => { requested.push(url); return document(); },
   });
-  assert.equal(requested.length, 2);
+  assert.equal(requested.length, 3);
   assert.equal(requested[0], "https://data.sec.gov/submissions/CIK0000012345.json");
   assert.ok(requested[1].endsWith("/annual-2025.htm"));
   assert.equal(result.profile?.employees?.value, 12345);
@@ -126,6 +126,8 @@ test("context retrieval uses injected transports and requests only the newest an
   assert.equal(result.profile?.employees?.source, requested[1]);
   assert.equal(result.sources[1].asOf, periodEnd);
   assert.equal(result.filings?.length, 4);
+  assert.equal(result.profile?.employeeHistory?.length, 1);
+  assert.deepEqual(result.profile?.employeeCoverage, {annualFilings:2, extracted:1, unavailablePeriods:["2024-12-31"], retrievalFailures:0});
 });
 
 test("missing or unavailable optional enrichment preserves valid profile and filing history", async () => {
@@ -136,4 +138,73 @@ test("missing or unavailable optional enrichment preserves valid profile and fil
   assert.equal(result.filings?.length, 4);
   assert.deepEqual(await context.getCompanyContext(cik, { fetchJson: async () => { throw new Error("temporary upstream failure"); } }), { sources: [] });
   assert.deepEqual(await context.getCompanyContext("../12345", { fetchJson: async () => { throw new Error("must not run"); } }), { sources: [] });
+});
+
+
+test("annual narrative variants retain Apple FTE, combined staffing and full-time basis", () => {
+  const apple = '<p>As of September 27, 2025, the Company had approximately <span>166,</span><span>000</span> full-time <span>equivalent employees.</span></p>';
+  const fte = context.parseEmployeeDisclosure(apple, { periodEnd: "2025-09-27" });
+  assert.equal(fte?.value, 166000);
+  assert.equal(fte?.basis, "full-time-equivalent");
+  assert.equal(fte?.approximate, true);
+  assert.equal(fte?.asOf, "2025-09-27");
+  assert.equal(context.parseEmployeeDisclosure(apple, { periodEnd: "2024-09-28" }), undefined);
+  const combined = context.parseEmployeeDisclosure('We employed approximately 1,576,000 full-time and part-time employees as of December 31, 2025.', { periodEnd });
+  assert.equal(combined?.value, 1576000);
+  assert.equal(combined?.basis, "full-and-part-time");
+  const fullTime = context.parseEmployeeDisclosure('As of June 30, 2026, we employed approximately 223,000 people on a full-time basis, 125,000 in the U.S. and 98,000 internationally.', { periodEnd: "2026-06-30" });
+  assert.equal(fullTime?.value, 223000);
+  assert.equal(fullTime?.basis, "full-time");
+  assert.equal(fullTime?.approximate, true);
+  assert.ok(fullTime?.evidence.endsWith('basis…'));
+});
+
+test("regional breakdowns must reconcile and distinct workforce measures are not combined", () => {
+  const msft = 'As of June 30, 2026, we employed approximately 223,000 people on a full-time basis, 125,000 in the U.S. and 97,000 internationally.';
+  assert.equal(context.parseEmployeeDisclosure(msft, { periodEnd: "2026-06-30" }), undefined);
+  for (const sentence of [
+    'As of December 31, 2025, we had 12,000 full-time equivalent employees in Canada.',
+    'As of December 31, 2025, we had 12,000 full-time equivalent employees including contractors.',
+    'As of December 31, 2025, we had 12,000 full-time equivalent employees and 400 contractors.',
+    'As of December 31, 2025, we had 12,000 full-time and part-time employees excluding Asia.',
+  ]) assert.equal(context.parseEmployeeDisclosure(sentence, { periodEnd }), undefined);
+  const observations = 'As of December 31, 2025, we had 12,000 full-time equivalent employees. As of December 31, 2025, we had 14,000 employees.';
+  const result = context.parseEmployeeDisclosure(observations, { periodEnd });
+  assert.equal(result?.value, 14000);
+  assert.equal(result?.basis, 'total');
+  const fteAndFullTime = 'As of December 31, 2025, we had 12,000 full-time equivalent employees. As of December 31, 2025, we had 11,000 full-time employees.';
+  assert.equal(context.parseEmployeeDisclosure(fteAndFullTime, { periodEnd })?.basis, 'full-time');
+});
+
+test("matching inline counts preserve the explicitly disclosed workforce basis", async () => {
+  const result = await context.getCompanyContext(cik, { fetchJson: async () => submissions(), fetchText: async () => document(fact("12345")) + '<p>As of December 31, 2025, we had approximately 12,345 full-time equivalent employees.</p>' });
+  assert.equal(result.profile?.employees?.value, 12345);
+  assert.equal(result.profile?.employees?.basis, 'full-time-equivalent');
+  assert.equal(result.profile?.employees?.approximate, true);
+  assert.equal(result.profile?.employees?.method, 'inline-xbrl');
+});
+
+
+test("fiscal-year wording needs a verified issuer and reporting-period DEI fact", () => {
+  const fiscalFact = '<ix:nonNumeric name="dei:DocumentFiscalYearFocus" contextRef="annual">2026</ix:nonNumeric>';
+  const statement = '<p>As of the end of fiscal year 2026, we had approximately 42,000 employees in 38 countries.</p>';
+  const html = document(fiscalFact + statement);
+  const result = context.parseEmployeeDisclosure(html, { cik, periodEnd });
+  assert.equal(result?.value, 42000);
+  assert.equal(result?.basis, 'total');
+  assert.equal(result?.asOf, periodEnd);
+  assert.equal(context.parseEmployeeDisclosure(statement, { cik, periodEnd }), undefined);
+  assert.equal(context.parseEmployeeDisclosure(html, { periodEnd }), undefined);
+  assert.equal(context.parseEmployeeDisclosure(html, { cik: '999', periodEnd }), undefined);
+  assert.equal(context.parseEmployeeDisclosure(html, { cik, periodEnd: '2024-12-31' }), undefined);
+  assert.equal(context.parseEmployeeDisclosure(document(fiscalFact.replace('>2026<', '>2025<') + statement), { cik, periodEnd }), undefined);
+  assert.equal(context.parseEmployeeDisclosure(document(fiscalFact + fiscalFact.replace('>2026<', '>2025<') + statement), { cik, periodEnd }), undefined);
+});
+
+test("named issuer disclosures use the trusted legal name and retain its punctuation", () => {
+  const statement = '<p>As of December 31, 2025, Fixture Company, Inc. had 12,345 employees globally.</p>';
+  assert.equal(context.parseEmployeeDisclosure(statement, { periodEnd, legalName: 'Fixture Company, Inc.' })?.value, 12345);
+  assert.equal(context.parseEmployeeDisclosure(statement, { periodEnd, legalName: 'Other Company, Inc.' }), undefined);
+  assert.equal(context.parseEmployeeDisclosure(statement, { periodEnd }), undefined);
+  assert.equal(context.parseEmployeeDisclosure('At December 31, 2025, the firm had 12,345 employees globally.', { periodEnd })?.value, 12345);
 });

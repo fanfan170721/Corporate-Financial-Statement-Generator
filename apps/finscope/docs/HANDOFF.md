@@ -2,6 +2,12 @@
 
 This document records Finscope's architecture, current service readiness and development priorities.
 
+## Workforce history
+
+Report generation checks up to five annual filings for dated workforce observations. `company-context.ts` supports full-time equivalents, full-/part-time totals, full-time people, verified issuer names and filing-bound fiscal-year phrases; the 50,000-row metadata scan accommodates frequent filers. Values retain approximation, basis, reporting date and source. `employee-trend.ts` separates incompatible bases, preserves missing-year gaps and treats old saved reports as snapshots needing regeneration. History is included in CSV.
+
+Actual public-document checks produced five sourced observations each for Apple, Microsoft, NVIDIA, Amazon and JPMorganChase. This five-issuer sample is not proof of universal coverage. Retrieval uses at most five annual HTML files plus up to eight validated, date-targeted historical metadata files. Parsing is sequential and bounded to 17 MB per annual document. Compact document observations cache for 30 days, unparsed results for 24 hours and retrieval failures for 60 seconds. Report batches and per-Worker enrichment are sequential; existing shared SEC spacing remains. No paid AI call, credential change, database migration or homepage prefetch is needed.
+
 ## Administrator allowances
 
 Verified application administrators receive unlimited site report and AI allowances. `isAdminAccount` reads the verified `auth_accounts` identity and applies server administrator configuration; editable profiles never grant the exemption. `Viewer.usage.unlimited` and AI status `unlimited` control the English/French displays. Administrator AI uses a separate usage-ledger scope and can use the existing sponsored connection without a pass. Normal accounts and guests retain their allowances. Provider balance/rate limits and existing authentication, evidence and request-validation checks remain in force. No automatic billing is enabled by this change.

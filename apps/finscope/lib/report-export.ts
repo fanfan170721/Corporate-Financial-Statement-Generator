@@ -1,5 +1,6 @@
 import type { FinancialPeriod, Report } from "./types";
 import { getReportScope } from "./report-scope";
+import { employeeTrend, employeeBasisLabels } from "./employee-trend";
 
 const fields: [keyof FinancialPeriod, string][] = [["revenue", "Revenue"], ["netIncome", "Net income"], ["operatingCashFlow", "Operating cash flow"], ["capex", "Capital expenditure"], ["cash", "Cash and equivalents"], ["debt", "Interest-bearing debt"], ["assets", "Total assets"], ["liabilities", "Total liabilities"], ["equity", "Shareholders' equity"], ["grossProfit", "Gross profit"], ["operatingIncome", "Operating income"]];
 
@@ -25,6 +26,21 @@ export function reportToCsv(report: Report, t: (source: string) => string = (sou
     ...(basic ? [[t("Latest filing"), report.dataAsOf]] : []), [t("Source retrieved"), report.retrievedAt], [t("Report saved"), report.generatedAt],
   ];
   if (report.profile) for (const [label,value] of [["Registered name",report.profile.legalName],["SEC issuer identifier",report.company.cik],["Industry classification (SIC)",report.profile.sic],["Business location",report.profile.country],["Company website",report.profile.website]]) if(value) rows.push([t(label!),value]);
+  if (report.profile?.employees) {
+    const employees = report.profile.employees;
+    const label = employees.basis === "full-time-equivalent" ? "REPORTED FULL-TIME EQUIVALENTS" : employees.basis === "full-and-part-time" ? "REPORTED FULL- AND PART-TIME EMPLOYEES" : employees.basis === "full-time" ? "REPORTED FULL-TIME EMPLOYEES" : employees.basis === "total" ? "REPORTED TOTAL EMPLOYEES" : "REPORTED EMPLOYEES";
+    rows.push([t(label), employees.value, employees.asOf, employees.approximate ? t("Approximate") : "", employees.source]);
+    if (employees.basis === "full-time-equivalent") rows.push([t("Definition"), t("Full-time equivalents measure working capacity, not individual people.")]);
+  }
+  if (report.profile?.employeeHistory) {
+    const trend = employeeTrend(report.profile);
+    rows.push([], [t("Historical workforce disclosures"), t("Reporting date"), t("Workforce measure"), t("Reported value"), t("Approximate"), t("Source")]);
+    for (const row of trend.rows) {
+      const items = trend.observations.filter(item => item.asOf === row.date);
+      if (!items.length) rows.push([t("Historical workforce disclosures"), row.date, t("Not available"), null]);
+      for (const item of items) rows.push([t("Historical workforce disclosures"), item.asOf, t(employeeBasisLabels[item.basis ?? "unspecified"]), item.value, item.approximate ? t("Approximate") : "", item.source]);
+    }
+  }
   if (!basic) rows.push([t("Definition"), t("Amounts in reporting-currency millions unless a row explicitly states per-share data or million shares. Empty cells indicate unavailable observations, never zero.")],[],[t("Statement"), t("Section"), t("Line item"), t("Unit"), ...years]);
   if (!basic && report.statements?.length) for (const statement of report.statements) for (const row of statement.rows) {
     const unit = row.unit === "currency-per-share" ? `${report.currency} per share` : row.unit === "million-shares" ? "Million shares" : `${report.currency} million`;

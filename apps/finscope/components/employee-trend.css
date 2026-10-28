@@ -1,0 +1,11 @@
+.employee-trend{margin-top:24px;padding-top:22px;border-top:1px solid var(--border,#e8ebf0)}
+.employee-trend h3{margin:0 0 8px}.employee-trend p{color:var(--muted,#7d8491);font-size:13px;line-height:1.65}
+.employee-trend-chart{height:230px;margin:18px 0 10px;min-width:0}
+.employee-trend-scroll{overflow-x:auto;max-width:100%;margin-top:14px}
+.employee-trend-table{width:100%;border-collapse:collapse;text-align:left;font-size:12px}
+.employee-trend-table th,.employee-trend-table td{padding:11px 10px;border-bottom:1px solid var(--border,#e8ebf0);vertical-align:top}
+.employee-trend-table th{font-weight:600;color:var(--muted,#7d8491)}
+.employee-trend-table th:first-child,.employee-trend-table td:first-child{padding-left:0;white-space:nowrap}
+.employee-trend-table td:nth-child(3){font-variant-numeric:tabular-nums;white-space:nowrap}.employee-trend-table a{white-space:nowrap}
+@media(max-width:600px){.employee-trend-chart{height:210px}.employee-trend-table{min-width:430px}}
+@media print{.employee-trend-scroll{overflow:visible}.employee-trend-table{min-width:0}.employee-trend{break-inside:avoid}}

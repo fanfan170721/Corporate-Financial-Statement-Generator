@@ -9,6 +9,7 @@ Finscope is a financial analysis and planning tool combining company statements,
 ## Features
 
 - Lightweight company discovery, on-demand financial reports and comparisons for up to three issuers.
+- Sourced workforce history from up to five annual filings, with distinct headcount/FTE series, missing-year gaps and CSV export. Historical evidence is reused to limit repeated downloads.
 - Standardized annual income, balance-sheet and cash-flow summaries with dates, currencies, missing-value handling and original filing sources.
 - Six financial charts, calculated ratios, CSV export and print layouts.
 - Email/password accounts, verification codes, password reset and persistent sessions. Account-owned records live in Cloudflare D1.
