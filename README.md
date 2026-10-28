@@ -15,6 +15,7 @@ Finscope is a financial analysis and planning tool combining company statements,
 - Email/password accounts, verification codes, password reset and persistent sessions. Account-owned records live in Cloudflare D1.
 - Optional guest access for manual financial reports without email. Guest sessions last 24 hours in the current browser; AI and morning briefs require a verified account.
 - Optional AI explanations grounded in financial evidence and web sources. Users may supply an encrypted OpenAI API key or redeem an owner-issued 24-hour pass.
+- Separate free-provider analysis can interpret saved public report evidence through an owner-configured Gemini or Groq connection. It preserves the existing OpenAI options and never automatically falls back to paid analysis.
 - Owner controls for passes, request/token allowances and sponsored API configuration.
 - Watchlists, archives, memos, manager-review checklists, asset–liability scenarios and a reconciled liquidity model.
 - Saved morning-report preferences and an optional external job runner.
@@ -30,7 +31,7 @@ The restricted `/owner/setup` page lets the configured owner connect provider ke
 | Email authentication | Implemented; delivery requires Resend and a verified sender domain. Production never simulates delivery. |
 | Company reports | SEC EDGAR directory, company-facts and submissions adapters provide annual financial summaries or clearly scoped basic profiles. A genuine operator contact in `SEC_USER_AGENT` is required; no SEC API key is needed. Search loads company metadata; evidence is fetched and coverage checked when a report is requested. |
 | Saved data | D1 stores reports, watchlists, notes, plans and preferences for authenticated accounts. |
-| AI | Requires a funded personal or sponsored OpenAI API key. No key is included in Git. |
+| AI | OpenAI uses a funded personal or sponsored key. Optional free-provider analysis requires a configured free-tier Gemini or Groq key and interprets saved evidence without web search. Gemini English/French generation and persistence were verified in production. No key is included in Git. |
 | Daily reports | Runner implemented; disabled until configuration and a manual verification succeed. |
 
 Full financial coverage requires strictly more than 90% completeness across the same 11 core fields and every displayed annual period, at least two comparable years, all six current primary totals, at most one missing latest field, and a valid latest reporting date within 550 days. Suggestions and search results are metadata with coverage pending. On generation, available evidence determines whether the report has full or partial financial coverage, or basic public information with verified issuer details and filing links. Each report identifies its scope, missing information and source dates. Missing financials are never invented, and basic reports do not support financial AI analysis. Coverage depends on the connected sources; it does not include every listed or private company worldwide.

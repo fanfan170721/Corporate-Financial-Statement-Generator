@@ -12,11 +12,12 @@ import { CompanySearch, useApp, SectionHeading, LoginGate, GuestAccessButton, Gu
 import { getCompany } from '@/lib/companies';
 import type { Company, Report } from '@/lib/types';
 import EmailAuth from './email-auth';
+import FirstVisitIntro from './first-visit-intro';
 import { canGenerateCompany, getReportScope } from '@/lib/report-scope';
 import { loadCompanyDirectory } from '@/lib/company-directory-request';
 const scopeLabel=(report:Report)=>({full:'Broad financial coverage',partial:'Partial financial coverage',basic:'Basic company profile'}[getReportScope(report).level]);
 
-function EntryScene({fishCompanies}:{fishCompanies:FishCompany[]}) {
+function EntryScene({fishCompanies,firstVisit=false}:{fishCompanies:FishCompany[];firstVisit?:boolean}) {
  const {t}=useI18n();
   const { viewer } = useApp();
   const signedIn = Boolean(viewer?.user);
@@ -34,6 +35,7 @@ function EntryScene({fishCompanies}:{fishCompanies:FishCompany[]}) {
           {!signedIn && <p className="entry-account-link">{t("New here?")} <Link href="/login?mode=register">{t("Create an account")}</Link></p>}
           {guest && <p className="entry-security">{t("Guest workspace · available for 24 hours in this browser.")}</p>}
           {!signedIn && !guest && <p className="entry-security"><ShieldCheck size={14}/>{t("Your saved work stays with your account.")}</p>}
+          <FirstVisitIntro firstVisit={firstVisit}/>
         </div>
         <div className="entry-ocean" aria-label={t("Interactive company fish pond")}><FishSchool companies={fishCompanies}/></div>
       </section>
@@ -41,7 +43,7 @@ function EntryScene({fishCompanies}:{fishCompanies:FishCompany[]}) {
   );
 }
 
-export function Welcome({fishCompanies}:{fishCompanies:FishCompany[]}) { return <EntryScene fishCompanies={fishCompanies}/>; }
+export function Welcome({fishCompanies,firstVisit=false}:{fishCompanies:FishCompany[];firstVisit?:boolean}) { return <EntryScene fishCompanies={fishCompanies} firstVisit={firstVisit}/>; }
 
 export function LoginPage({fishCompanies}:{fishCompanies:FishCompany[]}) {
  const {t}=useI18n();
