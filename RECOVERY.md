@@ -1,5 +1,18 @@
 # Recovery reference
 
+## Cross-source workforce release — version 22
+
+Published on 28 October 2026. This release adds bounded missing-period discovery through linked SEC issuer exhibits and the Wikidata API, annual year-end workforce table extraction, explicit secondary-source scope, and an English/French source-check trace. No database migration or production secret change.
+
+- Saved version: `appgprj_6adfe53d05bc8191983062a369584a6a~appgver_a0e92de6fd208191b55ed1e094995345`
+- Published source: `d9b529c5fc17c803e9c3bbf67ff0b677b37f0dd6`
+- Successful deployment: `appgdep_6ae1924df3108191b14dff6c78e4c276`
+- Environment revision: 5, unchanged.
+- Archive: `outputs/finscope-cross-source-v22.tar.gz`.
+- Validation: 196 automated tests, typecheck, production build and local HTTP checks passed. Actual CNI retrieval added two official year-end counts (2024/2025) using 4 supplementary requests / 3,316,711 bytes; the warm supplement cache made zero requests. Actual RY retrieval retained an explicit missing result. Sony, TSMC and Starbucks were separately checked against real dated Wikidata payloads. These samples do not prove universal coverage.
+- Recovery tag: `release-cross-source-workforce-v22`; prior `release-workforce-history-v21` remains intact.
+- Local source/build backup: `C:\Users\rosem\Finscope-Backups\cross-source-workforce-v22`. This is not a production database backup.
+
 ## Stable checkpoint
 
 `stable-2026-10-27` is the recovery tag for the application and maintenance documentation saved on 27 October 2026 (America/New_York). Do not move, overwrite or delete this tag.

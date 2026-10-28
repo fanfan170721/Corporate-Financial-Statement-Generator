@@ -1,4 +1,5 @@
 import type { Company, FinancialPeriod, Report, ReportScope } from "./types";
+import { employeeObservationBasis } from "./employee-trend";
 
 export function canGenerateCompany(company: Company): boolean {
   // Directory metadata permits a request, but does not certify financial coverage.
@@ -10,6 +11,8 @@ export function canGenerateCompany(company: Company): boolean {
 export function getReportScope(report: Report): ReportScope {
   const has = (fields: (keyof FinancialPeriod)[]) => report.periods.some(period => fields.some(field => typeof period[field] === "number" && Number.isFinite(period[field])));
   const financials = has(["revenue", "netIncome", "operatingIncome", "grossProfit", "assets", "liabilities", "equity", "cash", "debt", "operatingCashFlow", "capex"]);
+  const workforce = report.profile?.employees;
+  const secondaryWorkforce = [workforce, ...(report.profile?.employeeHistory ?? [])].some(item=>item && employeeObservationBasis(item) === "secondary-unspecified");
   const categories: [string, boolean][] = [
     ["Company identity", Boolean(report.company.nameEn && (report.profile?.cik || report.company.cik || report.sources.length))],
     ["Original public filings", Boolean(report.filings?.length || report.sources.some(source => /Annual filing|Original filing|Annual report/i.test(source.label)))],
@@ -17,13 +20,14 @@ export function getReportScope(report: Report): ReportScope {
     ["Assets and liabilities", has(["assets", "liabilities", "equity", "cash", "debt"])],
     ["Cash flow", has(["operatingCashFlow", "capex"])],
     ["Calculated financial ratios", Object.values(report.metrics).some(value => value !== null && Number.isFinite(value))],
-    [report.profile?.employees?.basis === "full-time-equivalent" ? "Reported full-time equivalents" : "Reported employee count", report.profile?.employees?.value !== undefined],
+    [workforce && employeeObservationBasis(workforce) === "secondary-unspecified" ? "Publicly reported workforce" : workforce?.basis === "full-time-equivalent" ? "Reported full-time equivalents" : "Reported employee count", workforce?.value !== undefined],
     ["Historical workforce disclosures", (report.profile?.employeeHistory?.length ?? 0) > 1],
   ];
   const level: ReportScope["level"] = !financials ? "basic" : report.coverage?.status === "available" || (!report.coverage && report.periods.length >= 2 && report.periods.every(period => Object.values(period).every(value => value !== null))) ? "full" : "partial";
   const limitations = [
     ...(report.scope?.limitations ?? []),
     ...(report.coverage?.reason ? [report.coverage.reason] : []),
+    ...(secondaryWorkforce ? ["Secondary workforce sources, including community-maintained data, are not primary company disclosures. Workforce definitions and dates may differ."] : []),
     ...(level === "basic" ? ["This report contains company information and filing links only. Financial comparisons and financial conclusions are not available."] : ["Financial coverage measures selected standardized annual fields, not every disclosure in the original filings."]),
     "Market prices, analyst forecasts, salaries and hiring activity are not included in this report.",
     "Missing information was not verified in the connected sources; it does not mean the company failed to disclose it.",

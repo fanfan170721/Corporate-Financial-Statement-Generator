@@ -1,7 +1,8 @@
 export type EvidenceCache = {
   get(key: string): Promise<unknown | undefined>;
   set(key: string, value: unknown, ttl: number): Promise<void>;
-  reserveSec(): Promise<void>;
+  reserveSec(deadline?: number): Promise<void>;
+  reservePublic?(deadline?: number): Promise<void>;
 };
 
 /** Stores only compact normalized public evidence, not large raw XBRL objects. */
@@ -15,16 +16,29 @@ export function evidenceStorage(db: D1Database): EvidenceCache {
     async set(key, value, ttl) {
       await db.prepare('INSERT INTO market_evidence_cache(cache_key,payload,expires_at) VALUES(?,?,?) ON CONFLICT(cache_key) DO UPDATE SET payload=excluded.payload,expires_at=excluded.expires_at').bind(key, JSON.stringify(value), Date.now() + ttl).run();
     },
-    async reserveSec() {
+    async reserveSec(deadline = Infinity) {
       // Two requests per second globally, well below SEC's aggregate maximum.
       for (let attempt = 0; attempt < 24; attempt++) {
         const now = Date.now();
+        if (now >= deadline) break;
         const row = await db.prepare(`INSERT INTO market_request_limits(bucket,count,expires_at) VALUES('sec-outbound',1,?)
           ON CONFLICT(bucket) DO UPDATE SET count=1,expires_at=excluded.expires_at WHERE market_request_limits.expires_at<=? RETURNING bucket`).bind(now + 500, now).first();
         if (row) return;
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, Math.min(500, deadline - now)));
       }
       throw new Error('The public filing service is busy.');
+    },
+    async reservePublic(deadline = Infinity) {
+      // Shared across users: a supplement must not create a burst at its source.
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const now = Date.now();
+        if (now >= deadline) break;
+        const row = await db.prepare(`INSERT INTO market_request_limits(bucket,count,expires_at) VALUES('public-workforce-outbound',1,?)
+          ON CONFLICT(bucket) DO UPDATE SET count=1,expires_at=excluded.expires_at WHERE market_request_limits.expires_at<=? RETURNING bucket`).bind(now + 1000, now).first();
+        if (row) return;
+        await new Promise(resolve => setTimeout(resolve, Math.min(1000, deadline - now)));
+      }
+      throw new Error('The supplementary source is busy.');
     },
   };
 }

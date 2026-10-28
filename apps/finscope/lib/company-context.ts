@@ -1,7 +1,8 @@
 import type { Report, Source, EmployeeObservation } from "./types";
 
 type Filing = NonNullable<Report["filings"]>[number] & { reportDate?: string };
-export type CompanyContext = { profile?: Report["profile"]; filings?: Report["filings"]; sources: Source[]; retrievedAt?: string };
+export type EmployeeCandidate = { url: string; periodEnd: string; form: string };
+export type CompanyContext = { profile?: Report["profile"]; filings?: Report["filings"]; sources: Source[]; retrievedAt?: string; employeeCandidates?: EmployeeCandidate[] };
 type Options = { fetchJson: (url: string) => Promise<unknown>; fetchText?: (url: string) => Promise<string>; currency?: string; cache?: {get(key:string):Promise<unknown>;set(key:string,value:unknown,ttl:number):Promise<void>} };
 const FORMS = new Set(["10-K", "10-Q", "8-K", "20-F", "40-F", "6-K", "S-1", "F-1", "S-3", "F-3", "424B4", "424B2", "10-12B", "10-12G", "DEF 14A"]);
 const ANNUAL_FORMS = new Set(["10-K", "20-F", "40-F"]);
@@ -254,6 +255,86 @@ export function parseEmployeeDisclosure(html: string, options: { periodEnd: stri
   return totals[0] ?? observations.find(item => item.basis === "full-time") ?? observations[0];
 }
 
+function issuerExhibit(href: string, annualUrl: string): string | undefined {
+  // Reject ambiguous paths before URL normalization removes traversal segments.
+  if (href.length > 2000 || /[\\\u0000-\u0020%?]/.test(href) || /(?:^|\/)\.\.(?:\/|$)/.test(href)) return;
+  try {
+    const annual = new URL(annualUrl), target = new URL(href, annual);
+    if (target.protocol === "http:" && target.hostname === "www.sec.gov" && !target.port) target.protocol = "https:";
+    const path = /^\/Archives\/edgar\/data\/\d{1,10}\/\d{18}\/([A-Za-z0-9_-][A-Za-z0-9_.-]*\.html?)$/i;
+    if (annual.origin !== "https://www.sec.gov" || annual.username || annual.password || annual.search || !path.test(annual.pathname)) return;
+    if (target.origin !== annual.origin || target.username || target.password || target.search || !path.test(target.pathname)) return;
+    if (target.pathname.split('/')[4] !== annual.pathname.split('/')[4]) return;
+    if (target.pathname.includes("..") || target.pathname === annual.pathname) return;
+    target.hash = "";
+    return target.href;
+  } catch { return; }
+}
+
+/** Annual filings may incorporate another accession's document from the same issuer. */
+export function findEmployeeExhibits(html: string, annual: {url:string;periodEnd:string;form:string}): EmployeeCandidate[] {
+  if (!date(annual.periodEnd) || !ANNUAL_FORMS.has(annual.form)) return [];
+  const clean = html.slice(0,MAX_DOCUMENT_CHARACTERS).replace(/<!--[\s\S]*?-->/g," ").replace(/<(script|style|template)\b[^>]*>[\s\S]*?<\/\1\s*>/gi," ");
+  const candidates: (EmployeeCandidate & {priority:number})[] = [];
+  for (const match of clean.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a\s*>/gi)) {
+    const href = attributes(match[1]).href;
+    if (!href) continue;
+    const label = `${plain(match[2])} ${href}`;
+    const annualDocument = /annual[\s_-]*(?:report|information[\s_-]*form|stat)|\baif\b/i.test(label);
+    if (!annualDocument && !/(?:exhibit|ex)[\s_.-]*99(?:\b|[_.-])/i.test(label)) continue;
+    const url = issuerExhibit(href,annual.url);
+    if (url && !candidates.some(item=>item.url===url)) candidates.push({url,periodEnd:annual.periodEnd,form:annual.form,priority:annualDocument?0:1});
+    if (candidates.length === 100) break;
+  }
+  return candidates.sort((a,b)=>a.priority-b.priority).slice(0,2).map(({priority,...candidate})=>candidate);
+}
+
+/** Read an exactly aligned year-end employee row, never average staffing. */
+export function parseEmployeeTable(html:string, options:{cik:string;periodEnd:string;legalName?:string;source:string}):EmployeeDisclosure|undefined {
+  const cik=normalizeCik(options.cik), periodEnd=date(options.periodEnd);
+  if(!cik || !periodEnd || !options.legalName || html.length>MAX_DOCUMENT_CHARACTERS)return;
+  try {
+    const url=new URL(options.source);
+    if(url.origin!=="https://www.sec.gov" || url.username || url.password || url.search || url.hash || !new RegExp(`^/Archives/edgar/data/${Number(cik)}/\\d{18}/[A-Za-z0-9_-][A-Za-z0-9_.-]*\\.html?$`,'i').test(url.pathname) || url.pathname.includes('..'))return;
+  } catch { return; }
+  const clean=html.replace(/<!--[\s\S]*?-->/g,' ').replace(/<(script|style|template)\b[^>]*>[\s\S]*?<\/\1\s*>/gi,' ');
+  const body=decode(clean.replace(/<[^>]*>/g,' ')).replace(/\s+/g,' ');
+  const name=options.legalName.replace(/(?:,?\s+(?:company|co|inc|corp|corporation|ltd|limited|plc)\.?)+$/i,'').replace(/\s+/g,' ').trim();
+  if(name.length<5 || !new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\b`,'i').test(body))return;
+  const [year,month,day]=periodEnd.split('-').map(Number);
+  const monthName=['January','February','March','April','May','June','July','August','September','October','November','December'][month-1];
+  if(!new RegExp(`\\b(?:fiscal )?years? ended (?:${monthName} 0?${day},? ${year}|0?${day} ${monthName} ${year}|${periodEnd})\\b`,'i').test(body))return;
+  const values=new Set<number>();
+  for(const match of clean.matchAll(/<table\b[^>]*>([\s\S]*?)<\/table\s*>/gi)) {
+    const table=match[1];
+    if(/\b(?:segment|division|subsidiar\w*|geographic|regional|contractor|temporary)\b/i.test(plain(table)))continue;
+    let yearColumn:{start:number;span:number}|undefined;
+    for(const row of table.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr\s*>/gi)){
+      const cells:{start:number;span:number;value:string}[]=[];let position=0,invalid=false;
+      for(const cell of row[1].matchAll(/<(?:td|th)\b([^>]*)>([\s\S]*?)<\/(?:td|th)\s*>/gi)){
+        const attrs=attributes(cell[1]), span=attrs.colspan===undefined?1:Number(attrs.colspan);
+        if(!Number.isInteger(span) || span<1 || span>30 || (attrs.rowspan!==undefined&&attrs.rowspan!=='1')){invalid=true;break;}
+        cells.push({start:position,span,value:plain(cell[2]).replace(/\s+/g,' ').trim()});position+=span;
+      }
+      if(invalid)continue;
+      const filled=cells.filter(cell=>cell.value);
+      if(filled.length && filled.every(cell=>/^20\d{2}$/.test(cell.value))){
+        const headers=filled.filter(cell=>cell.value===String(year));
+        yearColumn=headers.length===1 && new Set(filled.map(cell=>cell.value)).size===filled.length ? headers[0] : undefined;
+        continue;
+      }
+      if(!yearColumn || filled[0]?.start!==0 || !/^(?:(?:total|number of) )?employees\s*(?:\(end of year\)|at year[- ]end|at the end of (?:the )?year)$/i.test(filled[0].value))continue;
+      const cell=cells.find(cell=>cell.start===yearColumn!.start&&cell.span===yearColumn!.span);
+      if(!cell || !/^(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(cell.value))continue;
+      const value=Number(cell.value.replaceAll(',',''));
+      if(Number.isSafeInteger(value)&&value>=0&&value<=100_000_000)values.add(value);
+    }
+  }
+  if(values.size!==1)return;
+  const value=[...values][0];
+  return {value,asOf:periodEnd,basis:'total',method:'annual-disclosure',evidence:`Employees (end of year) · ${periodEnd}: ${value.toLocaleString('en-US')}.`};
+}
+
 export async function getCompanyContext(cik: string, options: Options): Promise<CompanyContext> {
   const normalized = normalizeCik(cik);
   if (!normalized) return { sources: [] };
@@ -265,6 +346,7 @@ export async function getCompanyContext(cik: string, options: Options): Promise<
   const retrievedAt = new Date().toISOString();
   const sources: Source[] = [{ label: "SEC EDGAR · Company profile and filing history", url, ...(parsed.filings[0] ? { asOf: parsed.filings[0].filedAt } : {}) }];
   const profile = parsed.profile ? { ...parsed.profile } : undefined;
+  const employeeCandidates: EmployeeCandidate[] = [];
   if (options.fetchText && profile) {
     let annuals = parsed.annualFilings ?? [];
     // Frequent filers split their history across many manifest files. Select
@@ -311,19 +393,30 @@ export async function getCompanyContext(cik: string, options: Options): Promise<
     let retrievalFailures = 0;
     // Parse one large annual document at a time to bound Worker memory.
     for (const annual of annuals) try {
-      const cacheKey = `sec:employees:v1:${annual.url}`;
+      const cacheKey = `sec:employees:v2:${annual.url}`;
       const cached = record(await options.cache?.get(cacheKey));
-      const saved = record(cached?.observation);
+      // Reuse verified legacy observations, but retry legacy misses so linked
+      // annual exhibits can now be discovered without downloading them here.
+      const saved = record(cached?.observation) ?? record(record(await options.cache?.get(`sec:employees:v1:${annual.url}`))?.observation);
       if (saved && saved.source === annual.url && saved.asOf === annual.reportDate && Number.isSafeInteger(saved.value) && Number(saved.value) >= 0) {
         const observation = saved as EmployeeObservation;
         employeeHistory.push(observation);
         sources.push({label:`${annual.form} · Reported employee count`,url:annual.url,asOf:observation.asOf});
         continue;
       }
-      if (cached?.missing === true) { unavailablePeriods.push(annual.reportDate!); if(cached.retrievalFailed===true)retrievalFailures++; continue; }
+      if (cached?.missing === true) {
+        unavailablePeriods.push(annual.reportDate!);
+        if(cached.retrievalFailed===true)retrievalFailures++;
+        for (const value of (Array.isArray(cached.candidates) ? cached.candidates : []).slice(0,2)) {
+          const candidate = record(value);
+          const url = typeof candidate?.url === "string" ? issuerExhibit(candidate.url,annual.url) : undefined;
+          if (url && candidate?.periodEnd === annual.reportDate && candidate?.form === annual.form) employeeCandidates.push({url,periodEnd:annual.reportDate!,form:annual.form});
+        }
+        continue;
+      }
       const html = await options.fetchText(annual.url);
       const fact = parseEmployeeFact(html, { periodEnd: annual.reportDate!, cik: normalized });
-      const disclosure = parseEmployeeDisclosure(html, { periodEnd: annual.reportDate!, cik: normalized, legalName: profile.legalName });
+      const disclosure = parseEmployeeDisclosure(html, { periodEnd: annual.reportDate!, cik: normalized, legalName: profile.legalName }) ?? parseEmployeeTable(html, { periodEnd: annual.reportDate!, cik: normalized, legalName: profile.legalName, source: annual.url });
       // Never silently choose between two contradictory reported totals.
       const inconsistent = fact && (disclosure?.basis === "total" || disclosure?.basis === "full-and-part-time") && fact.value !== disclosure.value;
       const employees = inconsistent ? undefined : fact ? { ...fact, basis: "total" as EmployeeDisclosure["basis"], ...(disclosure?.value === fact.value ? disclosure : {}), method: "inline-xbrl" as const } : disclosure;
@@ -336,17 +429,20 @@ export async function getCompanyContext(cik: string, options: Options): Promise<
         await options.cache?.set(cacheKey,{observation:employeeHistory.at(-1)},30*86400000).catch(()=>undefined);
       } else {
         unavailablePeriods.push(annual.reportDate!);
-        await options.cache?.set(cacheKey,{missing:true},86400000).catch(()=>undefined);
+        const candidates = findEmployeeExhibits(html,{url:annual.url,periodEnd:annual.reportDate!,form:annual.form});
+        employeeCandidates.push(...candidates);
+        await options.cache?.set(cacheKey,{missing:true,candidates},86400000).catch(()=>undefined);
       }
     } catch {
       retrievalFailures++; unavailablePeriods.push(annual.reportDate!);
       // Short failure cooldown; a temporary outage must not become a day-long miss.
-      await options.cache?.set(`sec:employees:v1:${annual.url}`,{missing:true,retrievalFailed:true},60000).catch(()=>undefined);
+      await options.cache?.set(`sec:employees:v2:${annual.url}`,{missing:true,retrievalFailed:true},60000).catch(()=>undefined);
     }
     employeeHistory.sort((a,b) => a.asOf.localeCompare(b.asOf));
     profile.employeeHistory = employeeHistory;
     profile.employeeCoverage = {annualFilings: annuals.length, extracted: employeeHistory.length, unavailablePeriods, retrievalFailures};
     if (employeeHistory.length) profile.employees = employeeHistory.at(-1);
   }
-  return { ...(profile ? { profile } : {}), filings: parsed.filings, sources, retrievedAt };
+  const candidates = employeeCandidates.filter((item,index,all)=>all.findIndex(other=>other.url===item.url)===index).slice(0,10);
+  return { ...(profile ? { profile } : {}), filings: parsed.filings, sources, retrievedAt, ...(candidates.length ? {employeeCandidates:candidates} : {}) };
 }

@@ -30,4 +30,15 @@ test("basic profile CSV preserves evidence and scope without inventing financial
  assert.match(workforce,/"Historical workforce disclosures","2024-09-28","Not available",""/);
  assert.match(workforce,/"Full-time equivalents","166000","Approximate","https:\/\/example.test\/annual-2025"/);
  assert.doesNotMatch(workforce,/"2024-09-28","Not available","0"|REPORTED TOTAL EMPLOYEES/);
+ report.profile!.employees={value:170000,asOf:"2026-06-30",basis:"secondary-unspecified",method:"public-directory",sourceLabel:"StockAnalysis",source:"https://example.test/employees",retrievedAt:"2026-10-28T12:00:00Z"};
+ report.profile!.employeeHistory.push(report.profile!.employees);
+ report.profile!.employeeResearch={checkedAt:"2026-10-28T12:00:00Z",requests:2,bytes:1000,addedObservations:1,steps:[{label:"StockAnalysis",url:"https://example.test/employees",status:"used",observations:1},{label:"Company website",url:"https://example.test/company",status:"no-data"}]};
+ const supplemented=reportToCsv(report);
+ assert.match(supplemented,/"PUBLICLY REPORTED WORKFORCE","170000","2026-06-30"/);
+ assert.match(supplemented,/"Secondary source · scope unspecified","170000","","https:\/\/example.test\/employees","Public company directory","StockAnalysis","2026-10-28T12:00:00Z"/);
+ assert.match(supplemented,/"Additional sources checked"/);
+ assert.match(supplemented,/"Workforce data added","1"/);
+ assert.match(supplemented,/"No dated workforce data found"/);
+ assert.match(supplemented,/The source does not specify the workforce measure/);
+ assert.doesNotMatch(supplemented,/employee growth|workforce growth/i);
 });

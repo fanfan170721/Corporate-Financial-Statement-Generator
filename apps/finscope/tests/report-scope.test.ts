@@ -13,6 +13,18 @@ async function moduleUrl(name: string, dependencies: Record<string, string> = {}
 const market = await import(await moduleUrl("market")) as typeof import("../lib/market");
 const scope = await import(await moduleUrl("report-scope")) as typeof import("../lib/report-scope");
 const env = { SEC_USER_AGENT: "Finscope test contact@example.test", FMP_API_KEY: "" };
+
+test("secondary workforce scope does not imply a verified primary employee count",()=>{
+  const employee={value:100,asOf:"2025-12-31",basis:"secondary-unspecified" as const,method:"public-directory" as const,source:"https://www.wikidata.org/wiki/Q123#P1128"};
+  const report:Report={id:"scope-secondary",symbol:"TEST",company:{symbol:"TEST",name:"Example",nameEn:"Example",exchange:"NYSE",sector:"Other",color:"#abc",mark:"E",cik:"123"},generatedAt:"2026-10-28T12:00:00Z",dataAsOf:"2025-12-31",mode:"live",currency:"USD",periods:[],metrics:{revenueGrowth:null,netMargin:null,freeCashFlow:null,debtToEquity:null,cashRatio:null,roe:null},insights:[],sources:[],profile:{employees:employee,employeeHistory:[employee]}};
+  const result=scope.getReportScope(report);
+  assert.ok(result.available.includes("Publicly reported workforce"));
+  assert.ok(!result.available.includes("Reported employee count"));
+  assert.ok(result.limitations.some(value=>value.includes("community-maintained")&&value.includes("not primary company disclosures")));
+  report.profile!.employees={...employee,basis:"full-time-equivalent",method:"annual-disclosure"};
+  assert.ok(scope.getReportScope(report).available.includes("Reported full-time equivalents"));
+  assert.ok(scope.getReportScope(report).limitations.some(value=>value.includes("community-maintained")),"Secondary historical observations retain their limitation when the latest value is primary");
+});
 const entries = ["PART", "BASIC", "MISMATCH", "EMPTY", "CACHE"].map((symbol, i) => ({ symbol, cik: 900001 + i }));
 const directory = { fields: ["cik", "name", "ticker", "exchange"], data: entries.map(entry => [entry.cik, `${entry.symbol} Example Corporation`, entry.symbol, "Nasdaq"]) };
 function submissions(cik: number) {

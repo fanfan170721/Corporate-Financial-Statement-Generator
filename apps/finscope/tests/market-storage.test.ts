@@ -115,3 +115,20 @@ test("SEC saturation fails after a bounded wait without stealing an existing res
     assert.equal(f.sql.prepare("SELECT expires_at FROM market_request_limits WHERE bucket='sec-outbound'").get()!.expires_at, fixedNow + 60_000);
   } finally { f.close(); }
 });
+
+test("public-source admission is shared, spaced one second, and stops at its deadline", async t => {
+  t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: fixedNow });
+  const f = fixture();
+  try {
+    const first = storage.evidenceStorage(f.db), second = storage.evidenceStorage(f.db);
+    await first.reservePublic!();
+    let admitted = false;
+    const pending = second.reservePublic!().then(() => { admitted = true; });
+    await flush(); t.mock.timers.tick(999); await flush(); assert.equal(admitted, false);
+    t.mock.timers.tick(1); await pending; assert.equal(admitted, true);
+    const deadline = Date.now() + 200;
+    const expired = assert.rejects(first.reservePublic!(deadline), /supplementary source is busy/);
+    await flush(); t.mock.timers.tick(200); await expired;
+    assert.equal(f.sql.prepare("SELECT expires_at FROM market_request_limits WHERE bucket='public-workforce-outbound'").get()!.expires_at, fixedNow + 2000);
+  } finally { f.close(); }
+});

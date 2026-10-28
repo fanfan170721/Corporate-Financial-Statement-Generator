@@ -37,3 +37,7 @@ test('saved deterministic summaries translate by whole templates without alterin
   assert.equal(tr('fr-CA','2 of 3 report credits remaining'),expected);
   assert.equal(tr('fr-CA','Quoted: 2 of 3 report credits remaining'),'Quoted: 2 of 3 report credits remaining');
 });
+
+test('workforce source checks and evidence distinctions are available in French',()=>{
+  for(const label of ['Issuer annual-report exhibit','Wikidata company identity','Wikidata workforce observations','Source crawl permissions','StockAnalysis workforce history','Company identity check','Company identity confirmed','Publicly reported workforce','Community-maintained public data']) assert.notEqual(tr('fr-CA',label),label,label);
+});

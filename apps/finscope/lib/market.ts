@@ -2,6 +2,7 @@ import { COMPANIES, getCompany, searchLocalCompanies } from "./companies";
 import { DIRECT_ISSUERS, IssuerDataError, retrieveIssuerFinancials } from "./issuer-financials";
 import { parseSecFinancials } from "./sec-financials";
 import { getCompanyContext } from "./company-context";
+import { supplementWorkforce } from "./workforce-discovery";
 import { canGenerateCompany, getReportScope } from "./report-scope";
 import { companySearchTerm, frenchAliasSymbols, normalizeCompanySearch } from "./company-search";
 import type { Company, DataCoverage, FinancialPeriod, Insight, Report, ReportMetrics, Source } from "./types";
@@ -390,7 +391,7 @@ async function enrichReport(report: Report, options: ServiceOptions, includeEmpl
 async function enrichReportSequential(report: Report, options: ServiceOptions, includeEmployees = true): Promise<Report> {
   const cik = report.company.cik;
   if (!cik || !environment("SEC_USER_AGENT", options)) return { ...report, scope: getReportScope(report) };
-  const key = `sec:context:v4:${includeEmployees ? "full" : "basic"}:${cik}`;
+  const key = `sec:context:v5:${includeEmployees ? "full" : "basic"}:${cik}`;
   try {
     let context = await options.cache?.get(key) as Awaited<ReturnType<typeof getCompanyContext>> | undefined;
     if (!context) {
@@ -411,7 +412,12 @@ async function enrichReportSequential(report: Report, options: ServiceOptions, i
           return new TextDecoder().decode(bytes);
         } : undefined,
       });
-      if (context.sources.length) await options.cache?.set(key, context, context.profile?.employeeCoverage?.retrievalFailures ? 60_000 : FINANCIAL_TTL);
+      if (includeEmployees) {
+        try { context = await supplementWorkforce(report.company, context, { fetcher: options.fetcher, cache: options.cache, secUserAgent: environment("SEC_USER_AGENT", options)! }); }
+        catch { /* Keep the available primary evidence if a supplement fails. */ }
+      }
+      const retrySoon = context.profile?.employeeCoverage?.retrievalFailures || context.profile?.employeeResearch?.steps.some(step => ["blocked", "unavailable", "skipped"].includes(step.status));
+      if (context.sources.length) await options.cache?.set(key, context, retrySoon ? 60_000 : FINANCIAL_TTL);
     }
     const enriched = { ...report, ...(!report.periods.length && context.retrievedAt ? { retrievedAt: context.retrievedAt } : {}), profile: context.profile, filings: context.filings, sources: [...report.sources, ...context.sources] };
     return { ...enriched, scope: getReportScope(enriched) };
