@@ -10,6 +10,16 @@ type AI = typeof import("../lib/ai-access") & typeof import("../lib/credential-v
 type Provider = (report: Report, options: { env: { OPENAI_API_KEY?: string }; onUsage: (usage: { inputTokens: number; outputTokens: number }) => void }) => Promise<unknown>;
 const report = { symbol: "MSFT", mode: "live" } as Report;
 
+test("basic public-information reports cannot reserve paid analysis or call the provider", async () => {
+  const f = await fixture();
+  try {
+    const basic = { ...report, scope: { level: "basic" as const, available: ["Company identity", "Public filings"], missing: ["Comparable annual financial figures"], limitations: [] } };
+    await assert.rejects(f.ai.generateMeteredAnalysis("alice", basic), (error: unknown) => (error as {code?: string}).code === "AI_REQUIRES_FINANCIAL_DATA");
+    assert.equal(f.calls(), 0);
+    assert.equal(f.sql.prepare("SELECT COUNT(*) AS n FROM ai_usage").get()!.n, 0);
+  } finally { f.close(); }
+});
+
 async function fixture() {
   const sql = new DatabaseSync(":memory:");
   sql.exec("PRAGMA foreign_keys=ON");

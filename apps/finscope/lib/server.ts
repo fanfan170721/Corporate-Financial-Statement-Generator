@@ -349,12 +349,19 @@ export function handleReport(id: string): Promise<Response> {
   });
 }
 
+export function assertFinancialAnalysisScope(report: Report): void {
+  if (report.scope?.level === "basic" || report.coverage?.reportLevel === "basic") {
+    throw new ApiError(400, "AI_REQUIRES_FINANCIAL_DATA", "This basic report contains company information and filings, but no comparable financial figures. Financial AI analysis is unavailable for this report.");
+  }
+}
+
 export function handleReportAI(request: Request, id: string): Promise<Response> {
   return apiHandler(async () => {
     assertSameOrigin(request);
     const user = await requireUser();
     const report = await ownedReport(user.userId, id);
     if (report.mode !== "live") throw new ApiError(400, "AI_REQUIRES_LIVE_DATA", "AI research requires verified public financials. Generate a live-data report first.");
+    assertFinancialAnalysisScope(report);
     const lease = await claimJob(user.userId, 1, 1, "ai");
     try {
       const updated = { ...report, ai: await generateMeteredAnalysis(user.userId, report) };

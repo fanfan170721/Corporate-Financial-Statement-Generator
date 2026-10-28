@@ -397,6 +397,23 @@ test("curated financial cases save server evidence privately without a live prov
   } finally { f.close(); }
 });
 
+test("basic report scope survives reopening and rejects financial AI before taking quota", async () => {
+  const f = await fixture();
+  try {
+    const saved = await f.server.handleSaveCaseStudy(request("/api/case-studies/MSFT", "POST"), "MSFT");
+    const { report } = await saved.json() as { report: Report };
+    report.scope = { level: "basic", available: ["Company identity", "Public filings"], missing: ["Comparable annual financial figures"], limitations: [] };
+    f.sql.prepare("UPDATE reports SET payload=? WHERE id=?").run(JSON.stringify(report), report.id);
+    const reopened = await f.server.handleReport(report.id);
+    assert.equal((await reopened.json() as {report: Report}).report.scope?.level, "basic");
+    const before = (await f.server.getViewer()).usage.used;
+    const response = await f.server.handleReportAI(request(`/api/reports/${report.id}/ai`, "POST"), report.id);
+    assert.equal(response.status, 400);
+    assert.equal((await response.json() as {code:string}).code, "AI_REQUIRES_FINANCIAL_DATA");
+    assert.equal((await f.server.getViewer()).usage.used, before);
+  } finally { f.close(); }
+});
+
 test("curated case saves enforce sign-in, origin, known symbols, and research quota", async () => {
   const f = await fixture();
   try {

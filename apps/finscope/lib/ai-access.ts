@@ -1,6 +1,6 @@
 import { env } from 'cloudflare:workers';
 import { z } from 'zod';
-import { ApiError, apiHandler, assertSameOrigin, body, database, isAdmin, json, requireUser } from './server';
+import { ApiError, apiHandler, assertSameOrigin, assertFinancialAnalysisScope, body, database, isAdmin, json, requireUser } from './server';
 import { hashAccessCode, newAccessCode, openCredential, sealCredential } from './credential-vault';
 import { generateAIAnalysis } from './ai';
 import type { AIAnalysis, Report } from './types';
@@ -111,6 +111,7 @@ export function handleSponsorKey(request: Request) { return apiHandler(async () 
 }); }
 
 export async function generateMeteredAnalysis(userId: string, report: Report): Promise<AIAnalysis> {
+  assertFinancialAnalysisScope(report);
   const now = Date.now(); const day = new Date(now).toISOString().slice(0, 10);
   const [own, grant, config] = await Promise.all([savedKey(userId), activeGrant(userId, now), aiConfig()]);
   if (!own && !grant) throw new ApiError(403, 'AI_ACCESS_REQUIRED', 'Add your own API key or redeem a 24-hour AI pass in AI access. All other tools remain available.');

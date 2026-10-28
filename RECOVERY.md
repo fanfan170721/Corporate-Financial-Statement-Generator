@@ -42,6 +42,15 @@ The welcome-pond update is Sites version **16**, published on 27 October 2026. I
 - Deployment archive: `outputs/finscope-fish-v16.tar.gz` (ignored by Git).
 - The preceding public release remains preserved at `release-2026-10-27-bilingual`.
 
+The evidence-scope update is Sites version **18** (version 17 introduced the same behaviour; version 18 completes two French labels). It adds verified partial and basic company reports, per-report and per-chart scope, and a server gate that prevents basic profiles from reserving paid financial analysis. No database migration or production credential change was required.
+
+- Saved version: `appgprj_6adfe53d05bc8191983062a369584a6a~appgver_a309710eab288191ad2e770a6d1156b5`
+- Published source: `77657035f66015a25aeb49d4f015b9c02715bccb`
+- Successful deployment: `appgdep_6ae16fcd38348191963b40e3b01f337b`
+- Deployment archive: `outputs/finscope-report-scope-v18.tar.gz` (ignored by Git).
+- Verification: 129 tests, TypeScript and production build passed; final catalogue changes passed targeted translation/export checks. Real SEC retrieval returned NVDA full (100%), JPM partial (67.3%) and CNI basic (eight original filings). Live production search confirmed CNI/JPM availability. Normal local guest requests generated and reopened both reports; CNI's English/French UI showed the correct scope without empty financial charts or AI controls. Browser inspection of the completed JPM page and the CSV download observer timed out; no further browser success is claimed. CSV content is covered by automated tests. No paid AI request or production guest credit was used.
+- Previous release retained at `release-2026-10-27-pond`; current source checkpoint: `release-2026-10-27-scope`.
+
 Fetch the tag, then open it in a separate directory rather than resetting the current checkout:
 
 ```sh

@@ -2,6 +2,7 @@ import { COMPANIES, getCompany, searchLocalCompanies } from "./companies";
 import { DIRECT_ISSUERS, IssuerDataError, retrieveIssuerFinancials } from "./issuer-financials";
 import { parseSecFinancials } from "./sec-financials";
 import { getCompanyContext } from "./company-context";
+import { getReportScope } from "./report-scope";
 import { companySearchTerm, frenchAliasSymbols, normalizeCompanySearch } from "./company-search";
 import type { Company, DataCoverage, FinancialPeriod, Insight, Report, ReportMetrics, Source } from "./types";
 import type { EvidenceCache } from "./market-storage";
@@ -231,7 +232,7 @@ const CORE_FIELDS = ["revenue", "netIncome", "operatingCashFlow", "capex", "asse
 const FINANCIAL_TTL = 15 * 60_000;
 const evidenceMemory = new Map<string, { expires: number; report: Report }>();
 const evidencePending = new Map<string, Promise<Report>>();
-const unavailableCoverage = (reason: string): DataCoverage => ({ status: "unavailable", completeness: 0, periods: 0, dataAsOf: "", checkedAt: new Date().toISOString(), missing: [...CORE_FIELDS], reason });
+const unavailableCoverage = (reason: string): DataCoverage => ({ status: "unavailable", completeness: 0, periods: 0, dataAsOf: "", checkedAt: new Date().toISOString(), missing: [...CORE_FIELDS], reason, reportAvailable: false });
 
 export function assessCoverage(periods: FinancialPeriod[], dataAsOf: string, checkedAt: string): DataCoverage {
   const expected = periods.length * CORE_FIELDS.length;
@@ -244,26 +245,32 @@ export function assessCoverage(periods: FinancialPeriod[], dataAsOf: string, che
   const stale = !validDate || cutoff > Date.now() || Date.now() - cutoff > 550 * 86400000;
   const critical = latest && ["revenue", "netIncome", "operatingCashFlow", "assets", "liabilities", "equity"].every(field => latest[field as keyof FinancialPeriod] != null);
   const ready = periods.length >= 2 && completeness > 90 && missing.length <= 1 && critical && !stale;
-  return { status: ready ? "available" : periods.length ? "limited" : "unavailable", completeness, periods: periods.length, dataAsOf, checkedAt, present, expected, missing,
+  return { status: ready ? "available" : periods.length ? "limited" : "unavailable", completeness, periods: periods.length, dataAsOf, checkedAt, present, expected, missing, reportLevel: ready ? "full" : present ? "partial" : "basic", reportAvailable: present > 0,
     ...(!ready ? { reason: stale ? "The latest annual filing is outside the current-report freshness window." : periods.length < 2 ? "Fewer than two comparable annual periods are available." : "Some standard financial concepts are missing or not comparable. Open the original filings for the complete disclosures." } : {}) };
 }
 
 function securityKey(company: Company) { return `sec:financials:v5:${company.cik ?? company.symbol}`; }
 
+function scopedEvidence(report: Report, company: Company): Report {
+  const coverage = assessCoverage(report.periods, report.dataAsOf, report.retrievedAt ?? report.generatedAt);
+  const scoped = { ...report, coverage, company: { ...company, coverage }, symbol: company.symbol };
+  return { ...scoped, scope: getReportScope(scoped) };
+}
+
 async function secFinancialEvidence(company: Company, options: ServiceOptions): Promise<Report> {
   const key = securityKey(company);
   const memory = evidenceMemory.get(key);
-  if (!options.fetcher && memory && memory.expires > Date.now()) return { ...memory.report, company, symbol: company.symbol };
+  if (!options.fetcher && memory && memory.expires > Date.now()) return scopedEvidence(memory.report, company);
   const saved = await options.cache?.get(key) as Report | undefined;
-  if (saved?.periods?.length && saved.provider === "SEC EDGAR") return { ...saved, company, symbol: company.symbol };
-  if (evidencePending.has(key)) return { ...await evidencePending.get(key)!, company, symbol: company.symbol };
+  if (saved?.periods?.length && saved.provider === "SEC EDGAR") return scopedEvidence(saved, company);
+  if (evidencePending.has(key)) return scopedEvidence(await evidencePending.get(key)!, company);
   const pending = (async (): Promise<Report> => {
     if (!company.cik || !/^\d{1,10}$/.test(company.cik)) throw new MarketDataError("NO_DATA", "No SEC issuer identifier is available.");
     const url = `https://data.sec.gov/api/xbrl/companyfacts/CIK${company.cik.padStart(10, "0")}.json`;
     const raw = await fetchJson(url, options, secHeaders(options));
     if (!raw || typeof raw !== "object" || !("cik" in raw) || Number(raw.cik) !== Number(company.cik)) throw new MarketDataError("INVALID_DATA", "The filing issuer identity did not match the requested company.");
     const financials = parseSecFinancials(raw as Parameters<typeof parseSecFinancials>[0], { cik: company.cik });
-    if (!financials.periods.length) throw new MarketDataError("NO_DATA", "Comparable annual financial disclosures are not available for this issuer.");
+    if (!financials.periods.some(period => CORE_FIELDS.some(field => period[field] !== null && Number.isFinite(period[field])))) throw new MarketDataError("NO_DATA", "Comparable annual financial disclosures are not available for this issuer.");
     const retrievedAt = new Date().toISOString();
     const coverage = assessCoverage(financials.periods, financials.dataAsOf, retrievedAt);
     const fieldSources: NonNullable<Report["fieldSources"]> = {};
@@ -283,7 +290,7 @@ async function secFinancialEvidence(company: Company, options: ServiceOptions): 
       evidenceMemory.set(key, { expires: Date.now() + FINANCIAL_TTL, report });
     }
     await options.cache?.set(key, report, FINANCIAL_TTL);
-    return report;
+    return { ...report, scope: getReportScope(report) };
   })();
   evidencePending.set(key, pending);
   try { return await pending; } finally { evidencePending.delete(key); }
@@ -295,7 +302,8 @@ async function checkCompany(company: Company, options: ServiceOptions): Promise<
     const coverage = report.coverage ?? assessCoverage(report.periods, report.dataAsOf, report.retrievedAt ?? report.generatedAt);
     return { ...company, coverage };
   } catch {
-    return { ...company, coverage: unavailableCoverage("Financial disclosures could not be verified from the connected sources. No report is offered for this result.") };
+    const basic = await basicCompanyReport(company, options, false);
+    return { ...company, coverage: basic?.coverage ?? unavailableCoverage("Company information and financial disclosures could not be verified from the connected sources. Please retry later.") };
   }
 }
 
@@ -381,17 +389,17 @@ async function resolveCompany(symbol: string, options: ServiceOptions): Promise<
   throw new MarketDataError("UNKNOWN_SYMBOL", "Company not found. Search again and select the matching exchange.");
 }
 
-async function enrichReport(report: Report, options: ServiceOptions): Promise<Report> {
+async function enrichReport(report: Report, options: ServiceOptions, includeEmployees = true): Promise<Report> {
   const cik = report.company.cik;
-  if (!cik || !environment("SEC_USER_AGENT", options)) return report;
-  const key = `sec:context:v1:${cik}`;
+  if (!cik || !environment("SEC_USER_AGENT", options)) return { ...report, scope: getReportScope(report) };
+  const key = `sec:context:v2:${includeEmployees ? "full" : "basic"}:${cik}`;
   try {
     let context = await options.cache?.get(key) as Awaited<ReturnType<typeof getCompanyContext>> | undefined;
     if (!context) {
       context = await getCompanyContext(cik, {
         currency: report.currency,
         fetchJson: url => fetchJson(url, options, secHeaders(options)),
-        fetchText: async url => {
+        fetchText: includeEmployees ? async url => {
           if (!/^https:\/\/www\.sec\.gov\/Archives\/edgar\/data\/\d+\/\d+\/[A-Za-z0-9_.-]+$/.test(url)) throw new Error("Invalid filing address");
           await options.cache?.reserveSec();
           const response = await (options.fetcher ?? fetch)(url, { headers: secHeaders(options), redirect: "manual", signal: AbortSignal.timeout(12_000) });
@@ -402,12 +410,30 @@ async function enrichReport(report: Report, options: ServiceOptions): Promise<Re
           finally { await reader.cancel().catch(() => undefined); }
           const bytes = new Uint8Array(size); let offset = 0; for (const part of parts) { bytes.set(part, offset); offset += part.length; }
           return new TextDecoder().decode(bytes);
-        },
+        } : undefined,
       });
-      await options.cache?.set(key, context, FINANCIAL_TTL);
+      if (context.sources.length) await options.cache?.set(key, context, FINANCIAL_TTL);
     }
-    return { ...report, profile: context.profile, filings: context.filings, sources: [...report.sources, ...context.sources] };
-  } catch { return report; }
+    const enriched = { ...report, ...(!report.periods.length && context.retrievedAt ? { retrievedAt: context.retrievedAt } : {}), profile: context.profile, filings: context.filings, sources: [...report.sources, ...context.sources] };
+    return { ...enriched, scope: getReportScope(enriched) };
+  } catch { return { ...report, scope: getReportScope(report) }; }
+}
+
+/** A filing index is useful evidence even when standardized accounts are unavailable.
+ * Directory membership alone is insufficient: submissions must match the issuer
+ * and include both its legal name and a valid, dated original filing URL.
+ */
+async function basicCompanyReport(company: Company, options: ServiceOptions, includeEmployees = true): Promise<Report | undefined> {
+  if (!company.cik || !environment("SEC_USER_AGENT", options)) return;
+  const now = new Date().toISOString();
+  const reason = "Standardized annual financial figures could not be retrieved or normalized for this report. This does not establish that the issuer has no financial disclosures.";
+  const coverage: DataCoverage = { ...unavailableCoverage(reason), reportLevel: "basic", reportAvailable: true };
+  const report = await enrichReport({ id: crypto.randomUUID(), symbol: company.symbol, company: { ...company, coverage }, generatedAt: now, retrievedAt: now, dataAsOf: "", mode: "live", dataKind: "provider", currency: "", periods: [], metrics: calculateMetrics([]), insights: [], sources: [], provider: "SEC EDGAR", coverage, note: "Company profile and original public filings from SEC EDGAR. No standardized financial figures or financial conclusions are included. The filing date is not a fiscal-period date. Public evidence may be cached for up to 15 minutes." }, options, includeEmployees);
+  if (!report.profile?.legalName || !report.profile.cik || !report.filings?.length) return;
+  report.dataAsOf = report.filings[0].filedAt;
+  coverage.dataAsOf = report.dataAsOf;
+  report.scope = getReportScope(report);
+  return report;
 }
 
 export async function generateReport(symbol: string, options: ServiceOptions & { allowDemoFallback?: boolean } = {}): Promise<Report> {
@@ -425,7 +451,7 @@ export async function generateReport(symbol: string, options: ServiceOptions & {
       try {
         const financials = await retrieveIssuerFinancials(company.symbol, options);
         const coverage = assessCoverage(financials.periods, financials.dataAsOf, financials.retrievedAt);
-        return { id: crypto.randomUUID(), symbol: company.symbol, company: { ...company, coverage }, generatedAt: new Date().toISOString(), mode: "live", dataKind: "provider", ...financials, coverage, metrics: calculateMetrics(financials.periods), insights: buildInsights(financials.periods) };
+        return await enrichReport({ id: crypto.randomUUID(), symbol: company.symbol, company: { ...company, coverage }, generatedAt: new Date().toISOString(), mode: "live", dataKind: "provider", ...financials, coverage, metrics: calculateMetrics(financials.periods), insights: buildInsights(financials.periods) }, options);
       } catch (error) { issuerError = error; }
     }
     let periods: FinancialPeriod[] = [];
@@ -451,8 +477,10 @@ export async function generateReport(symbol: string, options: ServiceOptions & {
     }
     const retrievedAt = new Date().toISOString();
     const coverage = assessCoverage(periods, dataAsOf, retrievedAt);
-    return { id: crypto.randomUUID(), symbol: company.symbol, company: { ...company, coverage }, generatedAt: retrievedAt, retrievedAt, provider: "Financial Modeling Prep", coverage, dataAsOf, mode: "live", dataKind: "provider", currency, periods, metrics: calculateMetrics(periods), insights: buildInsights(periods), sources, note: `Amounts in millions of ${currency}. Latest available complete fiscal years, not live prices. Missing items remain null. Growth, net margin and ROE are percentages; cash coverage is cash divided by total liabilities.` };
+    return await enrichReport({ id: crypto.randomUUID(), symbol: company.symbol, company: { ...company, coverage }, generatedAt: retrievedAt, retrievedAt, provider: "Financial Modeling Prep", coverage, dataAsOf, mode: "live", dataKind: "provider", currency, periods, metrics: calculateMetrics(periods), insights: buildInsights(periods), sources, note: `Amounts in millions of ${currency}. Latest available complete fiscal years, not live prices. Missing items remain null. Growth, net margin and ROE are percentages; cash coverage is cash divided by total liabilities.` }, options);
   } catch (error) {
+    const basic = await basicCompanyReport(company, options);
+    if (basic) return basic;
     if (options.allowDemoFallback && getCompany(symbol)) {
       const report = getDemoReport(symbol);
       report.note = `Provider retrieval failed; this report is explicitly marked synthetic. ${error instanceof MarketDataError ? error.message : "The data provider is temporarily unavailable."} ${report.note}`;

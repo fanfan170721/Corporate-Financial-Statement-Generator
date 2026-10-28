@@ -1,9 +1,9 @@
 import type { Report, Source } from "./types";
 
 type Filing = NonNullable<Report["filings"]>[number] & { reportDate?: string };
-export type CompanyContext = { profile?: Report["profile"]; filings?: Report["filings"]; sources: Source[] };
+export type CompanyContext = { profile?: Report["profile"]; filings?: Report["filings"]; sources: Source[]; retrievedAt?: string };
 type Options = { fetchJson: (url: string) => Promise<unknown>; fetchText?: (url: string) => Promise<string>; currency?: string };
-const FORMS = new Set(["10-K", "10-Q", "8-K", "20-F", "40-F", "6-K"]);
+const FORMS = new Set(["10-K", "10-Q", "8-K", "20-F", "40-F", "6-K", "S-1", "F-1", "S-3", "F-3", "424B4", "424B2", "10-12B", "10-12G", "DEF 14A"]);
 const ANNUAL_FORMS = new Set(["10-K", "20-F", "40-F"]);
 const MAX_DOCUMENT_CHARACTERS = 10_000_000;
 
@@ -48,10 +48,19 @@ export function parseSecSubmissions(value: unknown, cik: string): { profile?: Re
   const normalized = normalizeCik(cik);
   if (!body || !normalized || normalizeCik(String(body.cik ?? "")) !== normalized) return { filings: [] };
   const profile: NonNullable<Report["profile"]> = {};
+  const legalName = text(body.name);
+  if (legalName) profile.legalName = legalName;
+  profile.cik = normalized;
+  if (/^\d{4}$/.test(String(body.sic ?? ""))) profile.sic = String(body.sic);
+  const fiscalYearEnd = String(body.fiscalYearEnd ?? "");
+  if (/^\d{4}$/.test(fiscalYearEnd) && date(`2000-${fiscalYearEnd.slice(0, 2)}-${fiscalYearEnd.slice(2)}`)) profile.fiscalYearEnd = fiscalYearEnd;
+  const country = text(record(record(body.addresses)?.business)?.stateOrCountryDescription, 120);
+  // SEC uses this field for either a state or country: retain the source label.
+  if (country) profile.country = country;
   const industry = text(body.sicDescription);
   const description = text(body.description, 4000);
   const website = safeWebsite(body.website);
-  if (industry) profile.industry = industry;
+  if (industry) { profile.industry = industry; profile.sicDescription = industry; }
   if (description) profile.description = description;
   if (website) profile.website = website;
   const recent = record(record(body.filings)?.recent);
@@ -205,6 +214,7 @@ export async function getCompanyContext(cik: string, options: Options): Promise<
   let parsed: ReturnType<typeof parseSecSubmissions>;
   try { parsed = parseSecSubmissions(await options.fetchJson(url), normalized); } catch { return { sources: [] }; }
   if (!parsed.profile && !parsed.filings.length) return { sources: [] };
+  const retrievedAt = new Date().toISOString();
   const sources: Source[] = [{ label: "SEC EDGAR · Company profile and filing history", url, ...(parsed.filings[0] ? { asOf: parsed.filings[0].filedAt } : {}) }];
   const profile = parsed.profile ? { ...parsed.profile } : undefined;
   if (parsed.latestAnnual?.reportDate && options.fetchText) {
@@ -219,9 +229,9 @@ export async function getCompanyContext(cik: string, options: Options): Promise<
       if (employees) {
         const source = { label: `${annual.form} · Reported employee count`, url: annual.url, asOf: employees.asOf };
         sources.push(source);
-        return { profile: { ...profile, employees: { ...employees, source: annual.url } }, filings: parsed.filings, sources };
+        return { profile: { ...profile, employees: { ...employees, source: annual.url } }, filings: parsed.filings, sources, retrievedAt };
       }
     } catch { /* Optional enrichment must not prevent financial report generation. */ }
   }
-  return { ...(profile ? { profile } : {}), filings: parsed.filings, sources };
+  return { ...(profile ? { profile } : {}), filings: parsed.filings, sources, retrievedAt };
 }
