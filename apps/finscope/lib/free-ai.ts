@@ -1,10 +1,10 @@
 import type { AIAnalysis, FinancialPeriod, Insight, Report, Source } from "./types";
 
-export const FREE_AI_MODELS = { gemini: "gemini-3.8-flash", groq: "openai/gpt-oss-20b" } as const;
+export const FREE_AI_MODELS = { gemini: "gemini-3.5-flash-lite", groq: "openai/gpt-oss-20b" } as const;
 export const FREE_AI_MODEL = FREE_AI_MODELS.groq;
 export type FreeAIProvider = keyof typeof FREE_AI_MODELS;
 const ENDPOINTS = {
-  gemini: "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
+  gemini: "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent",
   groq: "https://api.groq.com/openai/v1/chat/completions",
 } as const;
 const RESPONSE_LIMIT = 128_000;
@@ -181,20 +181,34 @@ export async function generateFreeAIAnalysis(report: Report, options: Options): 
   const body=JSON.stringify(provider === 'gemini' ? {
     systemInstruction: {parts: [{text: instructions}]},
     contents: [{role: 'user', parts: [{text: JSON.stringify(packet)}]}],
-    generationConfig: {responseFormat: {text: {mimeType: 'APPLICATION_JSON', schema}}, thinkingConfig: {thinkingLevel: 'low', includeThoughts: false}, maxOutputTokens: 4096, temperature: 0.5, candidateCount: 1},
+    generationConfig: {responseFormat: {text: {mimeType: 'APPLICATION_JSON', schema}}, thinkingConfig: {thinkingLevel: 'low', includeThoughts: false}, maxOutputTokens: 4096},
   } : {model:FREE_AI_MODEL,stream:false,reasoning_effort:"low",include_reasoning:false,max_completion_tokens:2400,temperature:0.5,messages:[{role:"system",content:instructions},{role:"user",content:JSON.stringify(packet)}],response_format:{type:"json_schema",json_schema:{name:"report_commentary",strict:true,schema}}});
   if(body.length>12_000)throw new FreeAIError("FREE_AI_UNSUPPORTED_REPORT");
   try{
     const headers: Record<string,string> = {"Content-Type":"application/json", ...(provider === 'gemini' ? {'x-goog-api-key':options.apiKey} : {Authorization:`Bearer ${options.apiKey}`})};
     const response=await (options.fetcher??fetch)(ENDPOINTS[provider],{method:"POST",headers,body,redirect:"manual",signal:AbortSignal.timeout(provider === 'gemini' ? 90_000 : 40_000)});
+    if (!response.ok) console.warn('free_ai_provider_http', {provider, status:response.status});
     if(!response.ok){
       if(response.status===429)throw new FreeAIError("FREE_AI_RATE_LIMIT",await rateLimitDelay(response,provider));
+      if (provider === 'gemini') {
+        try {
+          const upstreamError = object(object(await boundedJson(response)).error);
+          const status = ['INVALID_ARGUMENT','PERMISSION_DENIED','UNAUTHENTICATED','NOT_FOUND','UNAVAILABLE','FAILED_PRECONDITION'].find(value=>value===upstreamError.status) ?? 'OTHER';
+          const message = typeof upstreamError.message === 'string' ? upstreamError.message : '';
+          const fields = ['responseFormat','responseJsonSchema','responseMimeType','thinkingLevel','thinkingConfig','temperature','maxOutputTokens','schema','API key'].filter(field=>message.includes(field));
+          console.warn('free_ai_request_rejected', {provider, status, fields});
+        } catch { /* Diagnostics never expose provider text or change error handling. */ }
+      }
       await response.body?.cancel().catch(()=>undefined);
       if(response.status===401||response.status===403)throw new FreeAIError("FREE_AI_INVALID_KEY");
       throw new FreeAIError("FREE_AI_UNAVAILABLE");
     }
     const payload=await boundedJson(response);
+    if (provider === 'gemini') {
+      const result = object(payload);
+      console.info('free_ai_response_shape', {provider, fields:Object.keys(result).slice(0,20), candidates:list(result.candidates).length, finishReasons:list(result.candidates).map(item=>text(object(item).finishReason,40)), hasUsage:Boolean(result.usageMetadata), blocked:Boolean(object(result.promptFeedback).blockReason)});
+    }
     recordUsage(payload,provider,options.onUsage);
     return parseAnalysis(responseText(payload,provider),sources,provider);
-  }catch(error){if(error instanceof FreeAIError)throw error;throw new FreeAIError("FREE_AI_UNAVAILABLE");}
+  }catch(error){console.warn('free_ai_failure', {provider, code:error instanceof FreeAIError ? error.code : 'FREE_AI_TRANSPORT_ERROR'});if(error instanceof FreeAIError)throw error;throw new FreeAIError("FREE_AI_UNAVAILABLE");}
 }

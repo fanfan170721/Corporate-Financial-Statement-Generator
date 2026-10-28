@@ -14,7 +14,7 @@ const ready={status:'ready' as const,summary:'Free provider analysis',insights:[
 const report={id:'report-a',symbol:'TEST',mode:'live',company:{symbol:'TEST',name:'Test issuer'},periods:[{year:'2025',revenue:100}],scope:{level:'full',available:[],missing:[],limitations:[]},ai:paid,generatedAt:'2026-10-28T00:00:00Z'} as unknown as Report;
 const fakeKey='gsk_'+ 'a'.repeat(48);
 const fakeGeminiKey='AIza'+'a'.repeat(35);
-const geminiModel={name:'models/gemini-3.8-flash',supportedGenerationMethods:['generateContent']};
+const geminiModel={name:'models/gemini-3.5-flash-lite',supportedGenerationMethods:['generateContent']};
 
 async function fixture(){
  const sql=new DatabaseSync(':memory:');sql.exec('PRAGMA foreign_keys=ON');
@@ -32,7 +32,7 @@ async function fixture(){
  let paidProvider:()=>Promise<AIAnalysis>=async()=>paid;
  let fetcher:typeof fetch=async(input)=>Response.json(String(input).includes('generativelanguage.googleapis.com')?geminiModel:{data:[{id:'openai/gpt-oss-20b'}]});
  class FreeAIError extends Error{code:string;retryAfterSeconds?:number;constructor(code:string,retryAfterSeconds?:number){super('untrusted provider error '+fakeKey);this.code=code;this.retryAfterSeconds=retryAfterSeconds;}}
- const injected={env,z,AsyncLocalStorage,FREE_AI_MODELS:{gemini:'gemini-3.8-flash',groq:'openai/gpt-oss-20b'},FreeAIError,
+ const injected={env,z,AsyncLocalStorage,FREE_AI_MODELS:{gemini:'gemini-3.5-flash-lite',groq:'openai/gpt-oss-20b'},FreeAIError,
   getUser:async()=>userId?{userId,displayName:userId,email:userId+'@example.test',emailVerified:true}:null,
   getGuest:async()=>({id:'guest-session'}),GuestError:class extends Error{},
   generateFreeAIAnalysis:async(r:Report,o:Parameters<Provider>[1])=>{calls++;return provider(r,o);},
@@ -143,7 +143,7 @@ test('basic and demonstration reports stop before reserving free-provider capaci
 test('an unconfigured installation selects Gemini and rejects generation without a key',async()=>{
  const f=await fixture();try{
   const state=await (await f.api.handleAdminFreeAI(f.request('/api/admin/ai/free'))).json() as {providerId:string;provider:string;model:string;configured:boolean};
-  assert.equal(state.providerId,'gemini');assert.equal(state.provider,'Gemini');assert.equal(state.model,'gemini-3.8-flash');assert.equal(state.configured,false);
+  assert.equal(state.providerId,'gemini');assert.equal(state.provider,'Gemini');assert.equal(state.model,'gemini-3.5-flash-lite');assert.equal(state.configured,false);
   await assert.rejects(f.api.generateMeteredFreeAnalysis('alice',report,'en-CA',f.request('/','GET',undefined,undefined,'CA')),(error:unknown)=>(error as {code?:string}).code==='FREE_AI_NOT_CONFIGURED');
   assert.equal(f.calls(),0);assert.equal(f.paidCalls(),0);
  }finally{f.close();}
@@ -152,7 +152,7 @@ test('an unconfigured installation selects Gemini and rejects generation without
 test('Gemini setup validates the fixed model using a header and stores only an encrypted credential',async()=>{
  const f=await fixture();try{
   const authKey='AQ.'+'b'.repeat(48);let seen=false;
-  f.setFetch(async(input,init)=>{assert.equal(String(input),'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash');const headers=new Headers(init?.headers);assert.equal(headers.get('x-goog-api-key'),authKey);assert.equal(headers.get('Authorization'),null);assert.ok(!String(input).includes(authKey));assert.equal(init?.redirect,'manual');assert.equal(init?.method,undefined);seen=true;return Response.json(geminiModel);});
+  f.setFetch(async(input,init)=>{assert.equal(String(input),'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite');const headers=new Headers(init?.headers);assert.equal(headers.get('x-goog-api-key'),authKey);assert.equal(headers.get('Authorization'),null);assert.ok(!String(input).includes(authKey));assert.equal(init?.redirect,'manual');assert.equal(init?.method,undefined);seen=true;return Response.json(geminiModel);});
   const response=await f.api.handleAdminFreeAI(f.request('/api/admin/ai/free','PUT',{apiKey:authKey,confirmedFreePlan:true}));assert.equal(response.status,200,await response.clone().text());assert.ok(seen);
   const state=await response.json() as {providerId:string;configured:boolean;key:{suffix:string}};assert.equal(state.providerId,'gemini');assert.equal(state.configured,true);assert.equal(state.key.suffix,'bbbb');
   const stored=String(f.sql.prepare("SELECT ciphertext FROM ai_credentials WHERE scope='__gemini_free__'").get()!.ciphertext);assert.ok(!stored.includes(authKey));assert.equal(await f.api.openCredential(stored,'__gemini_free__',String(f.env.CREDENTIAL_ENCRYPTION_KEY)),authKey);

@@ -122,13 +122,13 @@ test('citation numbers follow the rendered source order rather than provider-sup
 test('Gemini uses its fixed endpoint and header key with bounded structured generation', async () => {
   const net = network(geminiPayload()), usage: unknown[] = [];
   const result = await adapter.generateFreeAIAnalysis(report(), {provider:'gemini',apiKey:geminiKey,fetcher:net.fetcher,onUsage:value=>usage.push(value)});
-  assert.equal(result.model, 'gemini-3.8-flash');
+  assert.equal(result.model, 'gemini-3.5-flash-lite');
   assert.equal(result.insights.length, 5);
   assert.deepEqual(result.sources, [report().sources[0]]);
   assert.deepEqual(usage, [{inputTokens:900,outputTokens:570}]);
   assert.equal(net.calls.length, 1);
   const request = net.calls[0], body = JSON.parse(String(request.init.body)), headers = new Headers(request.init.headers);
-  assert.equal(request.url,'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent');
+  assert.equal(request.url,'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent');
   assert.equal(headers.get('x-goog-api-key'),geminiKey);
   assert.equal(headers.get('authorization'),null);
   assert.ok(!request.url.includes(geminiKey) && !String(request.init.body).includes(geminiKey));
@@ -138,7 +138,8 @@ test('Gemini uses its fixed endpoint and header key with bounded structured gene
   assert.equal(body.generationConfig.maxOutputTokens,4096);
   assert.equal(body.generationConfig.responseFormat.text.mimeType,'APPLICATION_JSON');
   assert.equal(body.generationConfig.responseFormat.text.schema.additionalProperties,false);
-  assert.equal(body.generationConfig.candidateCount,1);
+  assert.equal(body.generationConfig.candidateCount,undefined);
+  assert.equal(body.generationConfig.temperature,undefined);
   assert.equal(body.tools,undefined);
 });
 
