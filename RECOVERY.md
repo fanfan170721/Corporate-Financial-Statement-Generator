@@ -1,5 +1,17 @@
 # Recovery reference
 
+## First-visit introduction — version 29
+
+Published on 28 October 2026. Adds the Zidong Yuan introduction, public-source credits, replay and methodology links, English/French text and theme/reduced-motion support. First-visit display is controlled by a browser-local cookie. No database, credential, billing or financial-data changes.
+
+- Source commit: `2a151383951c9878a92bda6d562763a09d405466`.
+- Saved version: `appgprj_6adfe53d05bc8191983062a369584a6a~appgver_c23d93f813a48191a798f43b97314ff8`.
+- Deployment: `appgdep_6ae1ab32a8c481919e0b3687974c898d`.
+- Archive: `outputs/finscope-introduction-v29.tar.gz`.
+- Recovery tag: `release-introduction-v29`; previous checkpoint: `release-gemini-free-v28`.
+- Validation: TypeScript, six existing localization tests, production build and publication-input credential scan passed. Browser checks covered automatic exit, returning visits, replay, English/French, light/dark display and the live branded domain. HTTP checks confirmed the first-visit backdrop is absent for a seen-cookie request and document responses remain private/no-store.
+- Local recovery copy: `C:\Users\rosem\Finscope-Backups\release-introduction-v29` (source, Git history and deployment build; excludes production database and credentials).
+
 ## Cross-source workforce release — version 22
 
 Published on 28 October 2026. This release adds bounded missing-period discovery through linked SEC issuer exhibits and the Wikidata API, annual year-end workforce table extraction, explicit secondary-source scope, and an English/French source-check trace. No database migration or production secret change.
