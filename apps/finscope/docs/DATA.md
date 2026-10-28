@@ -101,6 +101,8 @@ Allocation and liquidity inputs are hypothetical assumptions in CAD billions, un
 
 ## Server-side AI
 
+An optional free-tier path supports owner-selected Gemini or Groq and separately analyses a bounded subset of the saved report. It performs no new web search, retains report dates and missing fields, and only accepts citations referring to the supplied source list. Its output is labelled separately and does not replace the existing OpenAI analysis. Availability requires an owner-connected Free-plan key and is subject to provider/site limits and regional eligibility. Google's free-service data-use terms are disclosed. The app never routes free requests to the OpenAI balance or automatically switches providers. See [AI access](AI-ACCESS.md#optional-free-tier-analysis).
+
 An account can add a personal OpenAI API key or redeem a limited 24-hour sponsored access pass at `/ai-access`. Keys submitted through the authenticated form are sent over HTTPS and encrypted by the server; they are not retained in browser storage or returned by the settings endpoint. Keep `CREDENTIAL_ENCRYPTION_KEY` and any deployment-level `OPENAI_API_KEY` in the server secret manager. Never put credential values in public environment variables, source control or logs. See the operating guide for access controls, limits and key management.
 
 Select a Responses, web-search and structured-output capable model with `OPENAI_MODEL` (default `gpt-6-astra`). A report must first be saved to the user's account; public case pages and synthetic examples cannot directly trigger AI requests.

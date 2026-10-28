@@ -376,8 +376,12 @@ export function handleReportAI(request: Request, id: string): Promise<Response> 
     assertFinancialAnalysisScope(report);
     const lease = await claimJob(user.userId, 1, 1, "ai");
     try {
-      const updated = { ...report, ai: await generateMeteredAnalysis(user.userId, report) };
-      await database().prepare("UPDATE reports SET payload=? WHERE user_id=? AND id=?").bind(JSON.stringify(updated), user.userId, id).run();
+      const ai = await generateMeteredAnalysis(user.userId, report);
+      // Independent analysis providers update separate fields without replacing
+      // results that may have been saved while this request was in flight.
+      const saved = await database().prepare("UPDATE reports SET payload=json_set(payload,'$.ai',json(?)) WHERE user_id=? AND id=? RETURNING payload").bind(JSON.stringify(ai), user.userId, id).first<{payload:string}>();
+      if (!saved) throw new ApiError(404, "REPORT_NOT_FOUND", "This report was not found.");
+      const updated = JSON.parse(saved.payload) as Report;
       await recordActivity(user.userId, "ai_analysis", [report.symbol]);
       return json({ report: updated });
     } finally { await releaseJob(user.userId, lease); }

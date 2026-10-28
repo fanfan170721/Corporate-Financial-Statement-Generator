@@ -2,6 +2,10 @@
 
 This document records Finscope's architecture, current service readiness and development priorities.
 
+## Free-provider analysis
+
+The free route is an additive option supporting owner-selected Gemini or Groq: `free-ai.ts` projects public evidence and validates structured report-only output; `free-ai-access.ts` owns encrypted provider-specific configuration, authenticated report ownership, shared free-provider admission and persistence. Routes are `/api/ai/free`, `/api/admin/ai/free` and `/api/reports/[id]/free-ai`. No database migration is required. Preserve existing OpenAI/pass/personal-key flows and guest restrictions. The UI clearly distinguishes saved-report interpretation from the existing web-assisted analysis. `request-region.ts` captures native Worker geography before framework cloning; untrusted headers cannot replace it. When the host provides none, a clearly labelled per-request country declaration supports Canada/US and cannot override a known restricted country. Follow AI-ACCESS.md to connect a Free-plan key and perform a live generation check; a deployed but unconfigured integration must not be described as operational.
+
 ## Workforce history
 
 Missing workforce periods now trigger bounded source discovery in `workforce-discovery.ts`: linked SEC issuer exhibits first, then exact-CIK Wikidata API lookup. Primary and community-maintained observations retain distinct scope, date and source labels; UI and CSV include a source-check trace. See DATA.md for request/byte/time budgets, caching and exclusions. Production does not use the experimental commercial-directory adapter. This is a source-specific retrieval pipeline, not unrestricted browsing or a promise of universal workforce coverage.

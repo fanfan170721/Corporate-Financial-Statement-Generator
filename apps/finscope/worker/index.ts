@@ -1,5 +1,6 @@
 import handler from "vinext/server/fetch-handler";
 import { runWithConnectorBinding } from "../lib/connector-context";
+import { runWithRequestRegion } from "../lib/request-region";
 import type { ConnectorBinding } from "../lib/connector-contract.mjs";
 
 const worker = {
@@ -23,7 +24,8 @@ const worker = {
         },
       };
     }
-    const response = await runWithConnectorBinding(binding, () => handler.fetch(request, env, ctx));
+    const response = await runWithRequestRegion(request, () =>
+      runWithConnectorBinding(binding, () => handler.fetch(request, env, ctx)));
     const secured = new Response(response.body, response);
     secured.headers.set('X-Content-Type-Options', 'nosniff');
     secured.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
