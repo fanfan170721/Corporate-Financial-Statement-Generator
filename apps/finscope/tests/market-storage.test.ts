@@ -84,22 +84,25 @@ test("search ledger cleanup is bounded and retains live reservations", async t =
   } finally { f.close(); }
 });
 
-test("SEC admission is shared across service instances and waits for the exact global slot", async t => {
+test("SEC admission is shared across service instances and admits four per one-second window", async t => {
   t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: fixedNow });
   const f = fixture();
   try {
     const first = storage.evidenceStorage(f.db);
     const second = storage.evidenceStorage(f.db);
-    await first.reserveSec();
+    await Promise.all([first.reserveSec(), second.reserveSec(), first.reserveSec(), second.reserveSec()]);
     let admitted = false;
     const pending = second.reserveSec().then(() => { admitted = true; });
     await flush();
     assert.equal(admitted, false);
-    t.mock.timers.tick(499); await flush();
+    assert.equal(f.sql.prepare("SELECT count FROM market_request_limits WHERE bucket='sec-outbound'").get()!.count, 4, "A denied request must not grow the window");
+    t.mock.timers.tick(999); await flush();
     assert.equal(admitted, false);
     t.mock.timers.tick(1); await pending;
     assert.equal(admitted, true);
-    assert.equal(f.sql.prepare("SELECT expires_at FROM market_request_limits WHERE bucket='sec-outbound'").get()!.expires_at, fixedNow + 1000);
+    const row = f.sql.prepare("SELECT count,expires_at FROM market_request_limits WHERE bucket='sec-outbound'").get()!;
+    assert.equal(row.count, 1);
+    assert.equal(row.expires_at, fixedNow + 2000);
     assert.equal(f.sql.prepare("SELECT COUNT(*) AS n FROM market_request_limits").get()!.n, 1);
   } finally { f.close(); }
 });
@@ -108,7 +111,7 @@ test("SEC saturation fails after a bounded wait without stealing an existing res
   t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: fixedNow });
   const f = fixture();
   try {
-    f.sql.prepare("INSERT INTO market_request_limits(bucket,count,expires_at) VALUES('sec-outbound',1,?)").run(fixedNow + 60_000);
+    f.sql.prepare("INSERT INTO market_request_limits(bucket,count,expires_at) VALUES('sec-outbound',4,?)").run(fixedNow + 60_000);
     const pending = assert.rejects(storage.evidenceStorage(f.db).reserveSec(), /public filing service is busy/);
     for (let i = 0; i < 24; i++) { await flush(); t.mock.timers.tick(500); }
     await pending;

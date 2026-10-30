@@ -162,15 +162,18 @@ async function fetchJson(url: string, options: ServiceOptions, headers: Record<s
   if (cached && cached.expires > Date.now()) return cached.data;
   if (inFlight.has(url)) return inFlight.get(url)!;
   const pending = (async () => {
+    // The shared limiter paces SEC requests across Workers; the local queue is only a fallback without it.
     if (new URL(url).hostname.endsWith("sec.gov")) {
       if (options.cache) await options.cache.reserveSec();
-      const slot = secQueue.then(async () => {
-        const wait = 350 - (Date.now() - lastSecRequest);
-        if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
-        lastSecRequest = Date.now();
-      });
-      secQueue = slot.catch(() => undefined);
-      await slot;
+      else {
+        const slot = secQueue.then(async () => {
+          const wait = 350 - (Date.now() - lastSecRequest);
+          if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+          lastSecRequest = Date.now();
+        });
+        secQueue = slot.catch(() => undefined);
+        await slot;
+      }
     }
     const response = await (options.fetcher ?? fetch)(url, { headers: { Accept: "application/json", ...headers }, signal: AbortSignal.timeout(timeoutMs), redirect: "manual" });
     if (!response.ok) throw new MarketDataError("PROVIDER_ERROR", `Data provider unavailable (HTTP ${response.status}). Please retry later.`);
@@ -458,11 +461,16 @@ async function resolveCompany(symbol: string, options: ServiceOptions): Promise<
   throw new MarketDataError("UNKNOWN_SYMBOL", "Company not found. Search again and select the matching exchange.");
 }
 
-let contextQueue: Promise<unknown> = Promise.resolve();
+// Each enrichment parses one annual document at a time; a small pool lets a
+// three-company batch overlap its network waits while bounding Worker memory.
+const CONTEXT_CONCURRENCY = 3;
+let contextActive = 0;
+const contextWaiting: (() => void)[] = [];
 async function enrichReport(report: Report, options: ServiceOptions, includeEmployees = true): Promise<Report> {
-  const pending = contextQueue.then(() => enrichReportSequential(report, options, includeEmployees));
-  contextQueue = pending.catch(() => undefined);
-  return pending;
+  if (contextActive >= CONTEXT_CONCURRENCY) await new Promise<void>((resolve) => contextWaiting.push(resolve));
+  else contextActive++;
+  try { return await enrichReportSequential(report, options, includeEmployees); }
+  finally { const next = contextWaiting.shift(); if (next) next(); else contextActive--; }
 }
 async function enrichReportSequential(report: Report, options: ServiceOptions, includeEmployees = true): Promise<Report> {
   const cik = report.company.cik;
@@ -480,12 +488,12 @@ async function enrichReportSequential(report: Report, options: ServiceOptions, i
           await options.cache?.reserveSec();
           const response = await (options.fetcher ?? fetch)(url, { headers: secHeaders(options), redirect: "manual", signal: AbortSignal.timeout(12_000) });
           if (!response.ok || !response.body) throw new Error("Filing unavailable");
-          const reader = response.body.getReader();
-          const parts: Uint8Array[] = []; let size = 0;
-          try { while (true) { const chunk = await reader.read(); if (chunk.done) break; size += chunk.value.length; if (size > 17_000_000) throw new Error("Filing exceeds enrichment limit"); parts.push(chunk.value); } }
+          // Decode while streaming so a filing is never held as raw chunks, a joined copy and text at once.
+          const reader = response.body.getReader(); const decoder = new TextDecoder();
+          let html = ""; let size = 0;
+          try { while (true) { const chunk = await reader.read(); if (chunk.done) break; size += chunk.value.length; if (size > 17_000_000) throw new Error("Filing exceeds enrichment limit"); html += decoder.decode(chunk.value, { stream: true }); } html += decoder.decode(); }
           finally { await reader.cancel().catch(() => undefined); }
-          const bytes = new Uint8Array(size); let offset = 0; for (const part of parts) { bytes.set(part, offset); offset += part.length; }
-          return new TextDecoder().decode(bytes);
+          return html;
         } : undefined,
       });
       if (includeEmployees) {

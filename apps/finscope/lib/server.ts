@@ -255,12 +255,15 @@ function validateReportCoverage(symbols: string[], mode: "demo" | "live") {
 }
 
 async function buildFinancialReports(symbols: string[], mode: "demo" | "live"): Promise<Report[]> {
-  const reports: Report[] = [];
-  for (const symbol of symbols) {
+  // Companies are independent; the shared upstream limiters still pace every request.
+  // Settle all of them before reporting the first failure, so no provider outlives the lease.
+  const settled = await Promise.allSettled(symbols.map(async (symbol): Promise<Report> => {
     const base = mode === "demo" ? getDemoReport(symbol) : await generateReport(symbol, { allowDemoFallback: false, env: providerEnv(), cache: evidenceStorage(database()) });
-    reports.push({ ...base, id: crypto.randomUUID(), generatedAt: new Date().toISOString() });
-  }
-  return reports;
+    return { ...base, id: crypto.randomUUID(), generatedAt: new Date().toISOString() };
+  }));
+  const failure = settled.find((result) => result.status === "rejected");
+  if (failure) throw failure.reason;
+  return settled.map((result) => (result as PromiseFulfilledResult<Report>).value);
 }
 
 async function createGuestReports(guest: GuestActor, symbols: string[], mode: "demo" | "live"): Promise<Report[]> {
