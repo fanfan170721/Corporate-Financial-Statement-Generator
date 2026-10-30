@@ -1,5 +1,5 @@
 import type { FinancialPeriod, Report } from "./types";
-import { getReportScope } from "./report-scope";
+import { getReportScope, publicFigureLabels } from "./report-scope";
 import { employeeTrend, employeeBasisLabels, employeeObservationBasis, employeeSourceType, employeeSourceLabel, employeeHeadline, employeeResearchStatusLabel } from "./employee-trend";
 
 const fields: [keyof FinancialPeriod, string][] = [["revenue", "Revenue"], ["netIncome", "Net income"], ["operatingCashFlow", "Operating cash flow"], ["capex", "Capital expenditure"], ["cash", "Cash and equivalents"], ["debt", "Interest-bearing debt"], ["assets", "Total assets"], ["liabilities", "Total liabilities"], ["equity", "Shareholders' equity"], ["grossProfit", "Gross profit"], ["operatingIncome", "Operating income"]];
@@ -17,15 +17,22 @@ export function reportToCsv(report: Report, t: (source: string) => string = (sou
   const basic = scope.level === "basic";
   const rows: (string | number | null | undefined)[][] = [
     ["Finscope", report.company.name, report.symbol],
-    [t("Evidence"), t(report.mode === "demo" ? "SYNTHETIC DEMONSTRATION — NOT ACTUAL FINANCIAL DATA" : report.dataKind === "filing-snapshot" ? "FROZEN PUBLISHED-FILING SNAPSHOT" : basic ? "Company identity and public filings" : "PUBLISHED FINANCIAL STATEMENTS")],
+    [t("Evidence"), t(report.mode === "demo" ? "SYNTHETIC DEMONSTRATION — NOT ACTUAL FINANCIAL DATA" : report.dataKind === "filing-snapshot" ? "FROZEN PUBLISHED-FILING SNAPSHOT" : report.profile?.registry ? "Legal entity registration and publicly reported figures" : basic ? "Company identity and public filings" : "PUBLISHED FINANCIAL STATEMENTS")],
     [t("Report scope"), t(({full:"Broad financial coverage",partial:"Partial financial coverage",basic:"Basic company profile"})[scope.level])],
     [t("Information included"), ...scope.available.map(value=>t(value))],
     [t("Outside this report’s scope"), ...scope.missing.map(value=>t(value))],
     ...scope.limitations.map(limitation=>[t("Scope and limitations"), t(limitation)]),
     [t("Provider"), report.provider], ...(!basic ? [[t("Reporting currency"), report.currency], [t("Financial period ending"), report.dataAsOf]] : []),
-    ...(basic ? [[t("Latest filing"), report.dataAsOf]] : []), [t("Source retrieved"), report.retrievedAt], [t("Report saved"), report.generatedAt],
+    ...(basic ? [[t(report.profile?.registry ? "Registry record updated" : "Latest filing"), report.dataAsOf]] : []), [t("Source retrieved"), report.retrievedAt], [t("Report saved"), report.generatedAt],
   ];
   if (report.profile) for (const [label,value] of [["Registered name",report.profile.legalName],["SEC issuer identifier",report.company.cik],["Industry classification (SIC)",report.profile.sic],["Business location",report.profile.country],["Company website",report.profile.website]]) if(value) rows.push([t(label!),value]);
+  const registry = report.profile?.registry;
+  if (registry) for (const [label,value] of [["Legal Entity Identifier (LEI)",registry.lei],["Legal form",registry.legalForm],["Jurisdiction",registry.jurisdiction],["Entity status",registry.entityStatus],["Headquarters",registry.headquarters],["Legal address",registry.legalAddress],["In the LEI register since",registry.registeredSince],["Direct parent",registry.directParent?.name],["Ultimate parent",registry.ultimateParent?.name],["GLEIF record",registry.recordUrl]]) if(value) rows.push([t(label!),value]);
+  const figures = report.profile?.publicFigures;
+  if (figures?.figures.length) {
+    rows.push([], [t("Publicly reported key figures"), t("Reported value"), t("Year"), t("Cited source"), t("Source")]);
+    for (const figure of figures.figures) rows.push([t(publicFigureLabels[figure.key]), figure.value, figure.year ?? t("Year not stated"), figure.citation, figures.url]);
+  }
   if (report.profile?.employees) {
     const employees = report.profile.employees;
     rows.push([t(employeeHeadline(employees)), employees.value, employees.asOf, employees.approximate ? t("Approximate") : "", employees.source, t(employeeSourceType(employees)), t(employeeSourceLabel(employees)), employees.retrievedAt]);

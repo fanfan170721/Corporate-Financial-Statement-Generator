@@ -5,7 +5,9 @@ import { getCompanyContext } from "./company-context";
 import { supplementWorkforce } from "./workforce-discovery";
 import { canGenerateCompany, getReportScope } from "./report-scope";
 import { companySearchTerm, frenchAliasSymbols, normalizeCompanySearch } from "./company-search";
-import type { Company, DataCoverage, FinancialPeriod, Insight, Report, ReportMetrics, Source } from "./types";
+import { isLei, registryAlias, registryNameKey, registryProfile, searchRegistry } from "./entity-registry";
+import { findPublicFigures } from "./public-figures";
+import type { Company, DataCoverage, FinancialPeriod, Insight, PublicFigures, RegistryProfile, Report, ReportMetrics, Source } from "./types";
 import type { EvidenceCache } from "./market-storage";
 
 export { getCompany } from "./companies";
@@ -310,7 +312,65 @@ function matchScore(company: Company, term: string, aliasSymbols: Set<string>): 
   return 0;
 }
 
-export async function searchCompanies(query: string, options: ServiceOptions & { limit?: number; live?: boolean; sector?: string; favorites?: string[] } = {}): Promise<Company[]> {
+const REGISTRY_TTL = 7 * 86_400_000;
+const registryFetch = (options: ServiceOptions) => (url: string) => fetchJson(url, options, {}, 3_600_000, 8_000);
+// Wikimedia asks automated clients to identify themselves with a contact.
+const wikiFetch = (options: ServiceOptions) => (url: string) => fetchJson(url, options, { "User-Agent": `Finscope/1.0 (https://finscopehq.com; ${environment("SEC_USER_AGENT", options)?.match(/[^\s@]+@[^\s@]+\.[^\s@]+/)?.[0] ?? "no contact configured"})` }, 3_600_000, 8_000);
+
+async function cachedRegistrySearch(term: string, options: ServiceOptions): Promise<Company[]> {
+  const key = `registry:search:v1:${registryNameKey(term)}`;
+  const saved = await options.cache?.get(key);
+  if (Array.isArray(saved)) return saved as Company[];
+  const found = await searchRegistry(term, registryFetch(options));
+  await options.cache?.set(key, found, 86_400_000);
+  return found;
+}
+
+async function cachedRegistryProfile(lei: string, options: ServiceOptions): Promise<{ company: Company; registry: RegistryProfile }> {
+  const key = `registry:profile:v1:${lei}`;
+  const saved = await options.cache?.get(key) as { company: Company; registry: RegistryProfile } | undefined;
+  if (saved?.registry?.lei === lei) return saved;
+  try {
+    const profile = await registryProfile(lei, registryFetch(options));
+    await options.cache?.set(key, profile, REGISTRY_TTL);
+    return profile;
+  } catch (error) {
+    if (error instanceof MarketDataError && /HTTP 404/.test(error.message)) throw new MarketDataError("UNKNOWN_SYMBOL", "This organization is not in the global LEI register. Search again and select a listed result.");
+    throw new MarketDataError("REGISTRY_UNAVAILABLE", "The global LEI register is temporarily unavailable. Please retry; no substitute company details were generated.");
+  }
+}
+
+async function cachedPublicFigures(registry: RegistryProfile, options: ServiceOptions): Promise<PublicFigures | undefined> {
+  const key = `registry:figures:v1:${registry.lei}`;
+  const saved = await options.cache?.get(key) as { figures?: PublicFigures } | undefined;
+  if (saved) return saved.figures;
+  const figures = await findPublicFigures({ legalName: registry.legalName, city: registry.city, article: registryAlias(registry.lei)?.wikipedia }, wikiFetch(options));
+  // A verified absence is rechecked daily; found figures follow the registry refresh period.
+  await options.cache?.set(key, { figures }, figures ? REGISTRY_TTL : 86_400_000);
+  return figures;
+}
+
+/** Registry profiles never contain standardized financial statements; public figures stay display text. */
+async function registryReport(lei: string, options: ServiceOptions): Promise<Report> {
+  const { company, registry } = await cachedRegistryProfile(lei, options);
+  let publicFigures: PublicFigures | undefined;
+  try { publicFigures = await cachedPublicFigures(registry, options); } catch { /* Key figures are optional; registry details remain valid evidence. */ }
+  const now = new Date().toISOString();
+  const coverage: DataCoverage = { ...unavailableCoverage("Standardized financial statements are not available from the connected sources for organizations identified through the global LEI register."), reportLevel: "basic", reportAvailable: true, dataAsOf: registry.lastUpdated ?? "" };
+  const sources: Source[] = [{ label: "GLEIF · Legal entity record", url: registry.recordUrl, ...(registry.lastUpdated ? { asOf: registry.lastUpdated } : {}) }];
+  if (publicFigures) sources.push({ label: "Wikipedia · Community-maintained organization summary", url: publicFigures.url, asOf: publicFigures.retrievedAt.slice(0, 10) });
+  for (const url of new Set((publicFigures?.figures ?? []).flatMap(figure => figure.citation ? [figure.citation] : []))) sources.push({ label: "Source cited by Wikipedia", url });
+  const report: Report = {
+    id: crypto.randomUUID(), symbol: company.symbol, company: { ...company, coverage }, generatedAt: now, retrievedAt: now, dataAsOf: registry.lastUpdated ?? "",
+    mode: "live", dataKind: "provider", provider: "GLEIF", currency: "", periods: [], metrics: calculateMetrics([]), insights: [], sources, coverage,
+    profile: { legalName: registry.legalName, ...(publicFigures?.website ? { website: publicFigures.website } : {}), registry, ...(publicFigures ? { publicFigures } : {}) },
+    note: "Legal entity details from the Global LEI System. Any key figures are quoted from Wikipedia with their stated year and citation; they are not standardized financial statements. Registry details may be cached for up to seven days.",
+  };
+  report.scope = getReportScope(report);
+  return report;
+}
+
+export async function searchCompanies(query: string, options: ServiceOptions & { limit?: number; live?: boolean; sector?: string; favorites?: string[]; entityRegistry?: boolean } = {}): Promise<Company[]> {
   const term = query.trim().slice(0, 80);
   const limit = Math.min(12, Math.max(1, options.limit ?? 8));
   if (options.live === false) return searchLocalCompanies(term, limit);
@@ -323,6 +383,11 @@ export async function searchCompanies(query: string, options: ServiceOptions & {
     .filter(canGenerateCompany)
     .slice(0, limit);
   let candidates: Company[];
+  if (options.entityRegistry && isLei(term.toUpperCase())) {
+    // Selecting a registry result re-resolves it by LEI; identifiers never match legal-name ranking.
+    try { return metadata([(await cachedRegistryProfile(term.toUpperCase(), options)).company]); }
+    catch { return []; }
+  }
   if (term) {
     const all = hasSec ? await secDirectory(options) : [];
     const aliases = searchLocalCompanies(term, limit)
@@ -337,6 +402,16 @@ export async function searchCompanies(query: string, options: ServiceOptions & {
     if (hasGlobal && !candidates.length) {
       const found = await fmp("search-name", { query: term, limit: String(limit) }, options);
       candidates = found.map(providerCompany).filter((c): c is Company => Boolean(c)).map(company => ({ ...company, discoveryProvider: "fmp" }));
+    }
+    const registryTerm = companySearchTerm(term) || term;
+    if (options.entityRegistry && !exact && registryTerm.length >= 3) {
+      try {
+        const listed = new Set(candidates.map(company => registryNameKey(company.nameEn)));
+        const entities = (await cachedRegistrySearch(registryTerm, options)).filter(company => !listed.has(registryNameKey(company.nameEn)));
+        // Listed issuers come first. Registered organizations fill the list only when no listed issuer matches.
+        const room = Math.min(entities.length, candidates.length ? 2 : limit);
+        candidates = [...candidates.slice(0, limit - room), ...entities.slice(0, room)];
+      } catch { /* The legal-entity register supplements discovery; listed issuers remain searchable. */ }
     }
   } else {
     const groups: Record<string, string[]> = { Technology: ["Semiconductors", "Software & cloud", "Internet & platforms", "Consumer technology"], "Consumer & health": ["Consumer & retail", "Healthcare"], Financials: ["Financial services"], "Energy & industrials": ["Energy", "Industrials", "Energy transition"] };
@@ -368,6 +443,7 @@ export function parseFmpStatements(income: Row[], balance: Row[], cashflow: Row[
 
 async function resolveCompany(symbol: string, options: ServiceOptions): Promise<Company> {
   const normalized = symbol.trim().toUpperCase().replace("BRK.B", "BRK-B");
+  if (isLei(normalized)) return (await cachedRegistryProfile(normalized, options)).company;
   if (environment("SEC_USER_AGENT", options)) {
     const company = (await secDirectory(options)).find(c => c.symbol === normalized);
     if (company) return company;
@@ -444,6 +520,7 @@ async function basicCompanyReport(company: Company, options: ServiceOptions, inc
 export async function generateReport(symbol: string, options: ServiceOptions & { allowDemoFallback?: boolean } = {}): Promise<Report> {
   assertServer();
   if (!/^[A-Za-z0-9.^-]{1,20}$/.test(symbol)) throw new MarketDataError("INVALID_SYMBOL", "Invalid security symbol.");
+  if (isLei(symbol.trim().toUpperCase())) return registryReport(symbol.trim().toUpperCase(), options);
   const company = await resolveCompany(symbol, options);
   try {
     let secError: unknown;

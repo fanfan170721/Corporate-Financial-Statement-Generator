@@ -82,6 +82,7 @@ export async function apiHandler(work: () => Promise<Response>): Promise<Respons
         INVALID_SYMBOL: "The ticker is invalid. Please select a company from search.",
         INVALID_CURRENCY: "The reporting currency could not be verified. No report has been generated.",
         RATE_LIMITED: "The data provider is temporarily limiting requests. Please try again shortly.",
+        REGISTRY_UNAVAILABLE: "The global LEI register is temporarily unavailable. Please retry shortly. No substitute company details were generated.",
       };
       const code = String(error.code);
       if (safeMessages[code]) return json({ error: safeMessages[code], code }, 422);
@@ -408,7 +409,7 @@ export function handleCompanies(request: Request): Promise<Response> {
       if (!admitted) throw new ApiError(429, "SEARCH_RATE_LIMIT", "Please slow down your searches. Live company lookup is limited to 30 requests per minute and 300 per day.");
     }
     const favorites = user ? await getFavorites(user.userId) : [];
-    const companies = await searchCompanies(query, { limit: query ? 8 : 12, live, sector, favorites, env: providerEnv(), cache: evidenceStorage(database()) });
+    const companies = await searchCompanies(query, { limit: query ? 8 : 12, live, sector, favorites, entityRegistry: true, env: providerEnv(), cache: evidenceStorage(database()) });
     return json({ companies });
   });
 }
