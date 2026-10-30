@@ -17,14 +17,19 @@ export function evidenceStorage(db: D1Database): EvidenceCache {
       await db.prepare('INSERT INTO market_evidence_cache(cache_key,payload,expires_at) VALUES(?,?,?) ON CONFLICT(cache_key) DO UPDATE SET payload=excluded.payload,expires_at=excluded.expires_at').bind(key, JSON.stringify(value), Date.now() + ttl).run();
     },
     async reserveSec(deadline = Infinity) {
-      // Two requests per second globally, well below SEC's aggregate maximum.
-      for (let attempt = 0; attempt < 24; attempt++) {
+      // Four requests per one-second window globally. Any one-second span then
+      // holds at most eight, below SEC's fair-access maximum of ten per second.
+      const limit = Math.min(deadline, Date.now() + 12_000);
+      while (Date.now() < limit) {
         const now = Date.now();
-        if (now >= deadline) break;
         const row = await db.prepare(`INSERT INTO market_request_limits(bucket,count,expires_at) VALUES('sec-outbound',1,?)
-          ON CONFLICT(bucket) DO UPDATE SET count=1,expires_at=excluded.expires_at WHERE market_request_limits.expires_at<=? RETURNING bucket`).bind(now + 500, now).first();
+          ON CONFLICT(bucket) DO UPDATE SET count=CASE WHEN market_request_limits.expires_at<=? THEN 1 ELSE market_request_limits.count+1 END,
+            expires_at=CASE WHEN market_request_limits.expires_at<=? THEN excluded.expires_at ELSE market_request_limits.expires_at END
+          WHERE market_request_limits.expires_at<=? OR market_request_limits.count<4 RETURNING bucket`).bind(now + 1000, now, now, now).first();
         if (row) return;
-        await new Promise(resolve => setTimeout(resolve, Math.min(500, deadline - now)));
+        // Wait for the full window to close rather than polling D1.
+        const window = await db.prepare("SELECT expires_at FROM market_request_limits WHERE bucket='sec-outbound'").first<{ expires_at: number }>();
+        await new Promise(resolve => setTimeout(resolve, Math.max(1, Math.min((window?.expires_at ?? now) - Date.now(), limit - Date.now()))));
       }
       throw new Error('The public filing service is busy.');
     },
