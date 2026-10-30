@@ -846,4 +846,10 @@ export const frResearch: Record<string, string> = {
   "Wikipedia · Community-maintained organization summary": "Wikipédia · Résumé alimenté par la communauté",
   "Source cited by Wikipedia": "Source citée par Wikipédia",
   "This report preserves registry details and cited public figures. Financial charts, ratios and AI financial analysis are withheld because comparable figures are unavailable.": "Ce rapport conserve les renseignements du registre et les chiffres publics cités. Les graphiques, les ratios et l’analyse financière par IA ne sont pas proposés en l’absence de données comparables.",
+  "Comparison and full reports": "Comparaison et rapports complets",
+  "Comparison": "Comparaison",
+  "{count} companies side by side": "{count} entreprises côte à côte",
+  "Select a company above to read its full report on this page.": "Sélectionnez une entreprise ci-dessus pour lire son rapport complet sur cette page.",
+  "Continue with the full reports": "Poursuivre avec les rapports complets",
+  "Each full report contains the complete evidence, company details and sources for one business.": "Chaque rapport complet réunit l’ensemble des données, les renseignements sur l’entreprise et les sources d’une seule société.",
 };
