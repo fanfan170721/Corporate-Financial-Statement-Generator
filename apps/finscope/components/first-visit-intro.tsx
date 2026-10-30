@@ -67,7 +67,7 @@ export default function FirstVisitIntro({ firstVisit }: { firstVisit: boolean })
       <div className="finscope-intro__topline"><span>Finscope<span className="finscope-intro__dot">.</span></span><span>{t('A clearer perspective.')}</span></div>
       <div className="finscope-intro__content">
         <p className="finscope-intro__eyebrow">{t('Created by')}</p>
-        <h1 id="finscope-intro-title"><span>Zidong</span> <span>Yuan<span className="finscope-intro__name-dot">.</span></span></h1>
+        <h1 id="finscope-intro-title"><span>Allen</span> <span>Yuan<span className="finscope-intro__name-dot">.</span></span></h1>
         <div className="finscope-intro__line" aria-hidden="true"><span/><i/><span/></div>
         <p id="finscope-intro-description" className="finscope-intro__description">{t('Company insight, grounded in public information.')}</p>
         <div className="finscope-intro__sources">
