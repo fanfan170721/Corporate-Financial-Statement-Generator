@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import vinext from "vinext";
 import { defineConfig } from "vite";
 import hostingConfig from "./.openai/hosting.json";
@@ -11,6 +12,14 @@ const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
 
 const { d1, r2 } = hostingConfig;
 
+// Self-hosted Cloudflare deploys (scripts/deploy-cloudflare.mjs) pass the
+// account's D1 database here. Local development keeps the placeholder so its
+// .wrangler state stays attached to the same local database.
+const d1DatabaseName =
+  process.env.FINSCOPE_D1_DATABASE_NAME || "site-creator-d1";
+const d1DatabaseId =
+  process.env.FINSCOPE_D1_DATABASE_ID || SITE_CREATOR_PLACEHOLDER_DATABASE_ID;
+
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 const managedLinux = readExecutionProfile() === "managed-linux";
@@ -22,8 +31,10 @@ const localBindingConfig = {
     ? [
         {
           binding: d1,
-          database_name: "site-creator-d1",
-          database_id: SITE_CREATOR_PLACEHOLDER_DATABASE_ID,
+          database_name: d1DatabaseName,
+          database_id: d1DatabaseId,
+          // Absolute: dist/server/wrangler.json keeps this value verbatim.
+          migrations_dir: fileURLToPath(new URL("./drizzle", import.meta.url)),
         },
       ]
     : [],

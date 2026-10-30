@@ -61,6 +61,18 @@ npm run build
 
 The development URL is normally `http://127.0.0.1:5173`. Explicit local mail-test mode is restricted to loopback, clearly labelled and never enabled on the hosted website.
 
+## Deployment (self-hosted Cloudflare, since 30 October 2026)
+
+The original Sites hosting is no longer available. `finscopehq.com` is now served by the Worker `finscope-research` in the owner's Cloudflare account, with the D1 database `finscope-db` recorded in `apps/finscope/cloudflare.production.json`. `www.finscopehq.com` still points to the retired Sites target. The production database started empty: accounts and reports from the Sites deployment were not exported and cannot be restored.
+
+```sh
+cd apps/finscope
+npx wrangler login
+npm run deploy
+```
+
+`npm run deploy` builds against the production D1 database, applies pending migrations remotely and deploys with the configured custom domains. `npm run deploy:config -- --admin-email <owner email>` stores runtime settings as Worker secrets; it generates `AUTH_SECRET` and `CREDENTIAL_ENCRYPTION_KEY` only when they are missing and never replaces them. Add mail delivery with `npx wrangler secret put RESEND_API_KEY --config dist/server/wrangler.json` and the same for `AUTH_EMAIL_FROM`. Keep `AUTH_TRUST_SITES_IDENTITY` and `OWNER_SETUP_ENABLED` false: this Worker is a directly reachable public origin.
+
 ## Maintenance
 
 ```text
